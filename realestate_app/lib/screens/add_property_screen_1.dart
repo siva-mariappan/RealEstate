@@ -86,6 +86,7 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
   SellPropertyType.plot: const Step1Config(landExtent: true),
   SellPropertyType.commercialLand: const Step1Config(landExtent: true),
   SellPropertyType.flat: const Step1Config(
+    landExtent: true,
     builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
@@ -94,6 +95,7 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
     furnishing: true,
   ),
   SellPropertyType.house: const Step1Config(
+    landExtent: true,
     builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
@@ -108,10 +110,12 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
     furnishing: true,
   ),
   SellPropertyType.complex: const Step1Config(
+    landExtent: true,
     builtUpArea: true,
     totalFloors: true,
   ),
   SellPropertyType.commercialBuilding: const Step1Config(
+    landExtent: true,
     builtUpArea: true,
     totalFloors: true,
   ),
@@ -120,7 +124,6 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
 // FIELD CONFIG MAP FOR RENT
 final Map<RentPropertyType, Step1Config> rentFieldConfig = {
   RentPropertyType.flat: const Step1Config(
-    builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
     floorNo: true,
@@ -128,15 +131,12 @@ final Map<RentPropertyType, Step1Config> rentFieldConfig = {
     furnishing: true,
   ),
   RentPropertyType.house: const Step1Config(
-    builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
     totalFloors: true,
     furnishing: true,
   ),
   RentPropertyType.villa: const Step1Config(
-    landExtent: true,
-    builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
     furnishing: true,
@@ -151,38 +151,21 @@ final Map<RentPropertyType, Step1Config> rentFieldConfig = {
     furnishing: true,
   ),
   RentPropertyType.independentFloor: const Step1Config(
-    builtUpArea: true,
     floorNo: true,
     totalFloors: true,
     furnishing: true,
   ),
   RentPropertyType.commercialBuilding: const Step1Config(
-    builtUpArea: true,
     totalFloors: true,
   ),
-  RentPropertyType.officeSpace: const Step1Config(
-    builtUpArea: true,
-  ),
-  RentPropertyType.shopShowroom: const Step1Config(
-    builtUpArea: true,
-  ),
-  RentPropertyType.warehouse: const Step1Config(
-    builtUpArea: true,
-  ),
+  RentPropertyType.officeSpace: const Step1Config(),
+  RentPropertyType.shopShowroom: const Step1Config(),
+  RentPropertyType.warehouse: const Step1Config(),
 };
 
 // CONSTANTS
 final List<String> bedroomOptions = ['RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Custom'];
 final List<String> bathroomOptions = ['1', '2', '3', '4', 'Custom'];
-final List<String> sizeRangeOptions = [
-  'Below 500 sqft',
-  '500 - 1000 sqft',
-  '1000 - 1500 sqft',
-  '1500 - 2000 sqft',
-  '2000 - 3000 sqft',
-  '3000 - 5000 sqft',
-  'Above 5000 sqft',
-];
 
 final List<String> furnishingItems = [
   'Beds',
@@ -202,57 +185,30 @@ final List<String> insideAmenities = [
   'Parking',
   'Garden',
   'Gym',
-  'Clubhouse',
   'Lift',
-  'Power Backup',
   'Security',
   'CCTV',
-  'Children Play Area',
-  'Jogging Track',
-  'Indoor Games',
-  'Intercom',
-  'Maintenance Staff',
   'Water Supply',
-  'Rainwater Harvesting',
   'Piped Gas',
-  'Visitor Parking',
-  'Fire Safety',
-  'Servant Room',
 ];
 
 final List<String> nearbyAmenities = [
   'School',
   'Hospital',
-  'Metro Station',
   'Shopping Mall',
-  'Park',
   'Restaurant',
   'Bus Stop',
   'ATM',
   'Pharmacy',
   'Gym',
   'Market',
-  'Temple',
-  'Church',
-  'Mosque',
   'Cinema Hall',
   'Airport',
   'Railway Station',
   'Police Station',
-  'Fire Station',
   'Bank',
-  'Post Office',
-  'Gas Station',
-  'Supermarket',
-  'Cafe',
   'Library',
-  'Community Center',
-  'Sports Complex',
-  'Swimming Pool',
-  'Golf Course',
   'Beach',
-  'Lake',
-  'Highway Access',
 ];
 
 // MAIN SCREEN
@@ -273,11 +229,12 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   FurnishingStatus? _furnishing;
   String? _selectedBedroom;
   String? _selectedBathroom;
-  String? _selectedSizeRange;
 
   // Controllers
   final _propertyNameController = TextEditingController();
-  final _landExtentController = TextEditingController();
+  final _propertyDescriptionController = TextEditingController(); // NEW: Description controller
+  final _landLengthController = TextEditingController();
+  final _landBreadthController = TextEditingController();
   final _builtUpAreaController = TextEditingController();
   final _floorNoController = TextEditingController();
   final _totalFloorsController = TextEditingController();
@@ -285,12 +242,12 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   final _customBedroomController = TextEditingController();
   final _customBathroomController = TextEditingController();
 
-  // Selected Items
-  final Map<String, TextEditingController> _furnishingControllers = {};
-  final Map<String, TextEditingController> _insideAmenityControllers = {};
-  final List<String> _customInsideAmenities = [];
+  // Selected Items (only selection, no controllers needed for furnishing & inside amenities)
+  final Set<String> _selectedFurnishings = {};
+  final Set<String> _selectedInsideAmenities = {};
   final Map<String, TextEditingController> _amenityControllers = {};
   final List<String> _customFurnishings = [];
+  final List<String> _customInsideAmenities = [];
   final List<String> _customAmenities = [];
 
   @override
@@ -308,6 +265,10 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     if (formData.propertyName != null) {
       _propertyNameController.text = formData.propertyName!;
     }
+    // NEW: Load property description
+    if (formData.propertyDescription != null) {
+      _propertyDescriptionController.text = formData.propertyDescription!;
+    }
     if (formData.propertyFor != null) {
       _propertyFor = formData.propertyFor!;
     }
@@ -318,13 +279,15 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       _selectedRentType = formData.rentPropertyType;
     }
     if (formData.landExtent != null) {
-      _landExtentController.text = formData.landExtent!;
+      // Try to parse L x B format
+      final parts = formData.landExtent!.split('x');
+      if (parts.length == 2) {
+        _landLengthController.text = parts[0].trim();
+        _landBreadthController.text = parts[1].trim();
+      }
     }
     if (formData.builtUpArea != null) {
       _builtUpAreaController.text = formData.builtUpArea!;
-    }
-    if (formData.sizeRange != null) {
-      _selectedSizeRange = formData.sizeRange;
     }
     if (formData.bedrooms != null) {
       _selectedBedroom = formData.bedrooms;
@@ -345,9 +308,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       _furnishing = formData.furnishingStatus;
     }
     if (formData.furnishingItems != null) {
-      for (var item in formData.furnishingItems!) {
-        _furnishingControllers[item] = TextEditingController();
-      }
+      _selectedFurnishings.addAll(formData.furnishingItems!);
     }
     if (formData.nearbyAmenities != null) {
       for (var item in formData.nearbyAmenities!) {
@@ -359,7 +320,9 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   @override
   void dispose() {
     _propertyNameController.dispose();
-    _landExtentController.dispose();
+    _propertyDescriptionController.dispose(); // NEW: Dispose description controller
+    _landLengthController.dispose();
+    _landBreadthController.dispose();
     _builtUpAreaController.dispose();
     _floorNoController.dispose();
     _totalFloorsController.dispose();
@@ -367,13 +330,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     _customBedroomController.dispose();
     _customBathroomController.dispose();
 
-    // Dispose dynamic controllers
-    for (var controller in _furnishingControllers.values) {
-      controller.dispose();
-    }
-    for (var controller in _insideAmenityControllers.values) {
-      controller.dispose();
-    }
+    // Dispose nearby amenity controllers
     for (var controller in _amenityControllers.values) {
       controller.dispose();
     }
@@ -485,19 +442,21 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate land extent and built-up area
-    if (config.landExtent && _landExtentController.text.trim().isEmpty) {
-      _showError('Please enter land extent');
-      return;
-    }
-    if (config.builtUpArea && _builtUpAreaController.text.trim().isEmpty) {
-      _showError('Please enter built-up area');
-      return;
+    // Validate land extent (L x B) for sell properties
+    if (_propertyFor == PropertyFor.sell && config.landExtent) {
+      if (_landLengthController.text.trim().isEmpty) {
+        _showError('Please enter land length');
+        return;
+      }
+      if (_landBreadthController.text.trim().isEmpty) {
+        _showError('Please enter land breadth');
+        return;
+      }
     }
 
-    // Validate size range is mandatory
-    if (_selectedSizeRange == null) {
-      _showError('Please select a size range');
+    // Validate built-up area
+    if (config.builtUpArea && _builtUpAreaController.text.trim().isEmpty) {
+      _showError('Please enter built-up area');
       return;
     }
 
@@ -549,14 +508,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate inside amenities details are mandatory when selected
-    for (var entry in _insideAmenityControllers.entries) {
-      if (entry.value.text.trim().isEmpty) {
-        _showError('Please enter details for ${entry.key}');
-        return;
-      }
-    }
-
     // Validate nearby amenities names are mandatory when selected
     for (var entry in _amenityControllers.entries) {
       if (entry.value.text.trim().isEmpty) {
@@ -571,40 +522,41 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
 
     // Update form data with Step 1 values
     formData.propertyName = _propertyNameController.text.trim();
+    formData.propertyDescription = _propertyDescriptionController.text.trim(); // NEW: Save description
     formData.propertyFor = _propertyFor;
     formData.sellPropertyType = _selectedSellType;
     formData.rentPropertyType = _selectedRentType;
-    formData.landExtent = _landExtentController.text;
-    formData.builtUpArea = _builtUpAreaController.text;
-    formData.sizeRange = _selectedSizeRange;
+    
+    // Save land extent as "L x B" format for sell properties
+    if (_propertyFor == PropertyFor.sell && config.landExtent) {
+      formData.landExtent = '${_landLengthController.text.trim()} x ${_landBreadthController.text.trim()}';
+    } else {
+      formData.landExtent = null;
+    }
+    
+    formData.builtUpArea = _builtUpAreaController.text.trim().isNotEmpty 
+        ? _builtUpAreaController.text.trim() 
+        : null;
     formData.bedrooms = _selectedBedroom;
     formData.bathrooms = _selectedBathroom;
-    formData.floorNo = _floorNoController.text;
-    formData.totalFloors = _totalFloorsController.text;
+    formData.floorNo = _floorNoController.text.trim().isNotEmpty 
+        ? _floorNoController.text.trim() 
+        : null;
+    formData.totalFloors = _totalFloorsController.text.trim().isNotEmpty 
+        ? _totalFloorsController.text.trim() 
+        : null;
     formData.facingDirection = _facing;
     formData.furnishingStatus = _furnishing;
 
-    // Collect selected furnishing items
-    final selectedFurnishings = <String>[];
-    for (var item in furnishingItems) {
-      if (_furnishingControllers.containsKey(item)) {
-        selectedFurnishings.add(item);
-      }
-    }
-    selectedFurnishings.addAll(_customFurnishings);
+    // Collect selected furnishing items (selection only, no details)
+    final selectedFurnishings = _selectedFurnishings.toList();
     formData.furnishingItems = selectedFurnishings.isNotEmpty ? selectedFurnishings : null;
 
-    // Collect selected inside amenities
-    final selectedInsideAmenities = <String>[];
-    for (var item in insideAmenities) {
-      if (_insideAmenityControllers.containsKey(item)) {
-        selectedInsideAmenities.add(item);
-      }
-    }
-    selectedInsideAmenities.addAll(_customInsideAmenities);
+    // Collect selected inside amenities (selection only, no details)
+    final selectedInsideAmenities = _selectedInsideAmenities.toList();
     // TODO: Add formData.insideAmenities field when PropertyFormData model is updated
 
-    // Collect selected nearby amenities
+    // Collect selected nearby amenities (with names)
     final selectedAmenities = <String>[];
     for (var item in nearbyAmenities) {
       if (_amenityControllers.containsKey(item)) {
@@ -647,21 +599,14 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   void _resetForm() {
     _selectedBedroom = null;
     _selectedBathroom = null;
-    _selectedSizeRange = null;
     _facing = null;
     _furnishing = null;
 
-    // Clear and dispose dynamic controllers
-    for (var controller in _furnishingControllers.values) {
-      controller.dispose();
-    }
-    _furnishingControllers.clear();
+    // Clear selections
+    _selectedFurnishings.clear();
+    _selectedInsideAmenities.clear();
 
-    for (var controller in _insideAmenityControllers.values) {
-      controller.dispose();
-    }
-    _insideAmenityControllers.clear();
-
+    // Clear and dispose nearby amenity controllers
     for (var controller in _amenityControllers.values) {
       controller.dispose();
     }
@@ -672,7 +617,9 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     _customAmenities.clear();
 
     _propertyNameController.clear();
-    _landExtentController.clear();
+    _propertyDescriptionController.clear(); // NEW: Clear description
+    _landLengthController.clear();
+    _landBreadthController.clear();
     _builtUpAreaController.clear();
     _floorNoController.clear();
     _totalFloorsController.clear();
@@ -751,170 +698,159 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                     ),
                     padding: const EdgeInsets.all(32),
                     child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Basic Property Details',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Step 1 – Provide basic information about your property',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Property For Section
-                    _buildPropertyForSection(),
-                    const SizedBox(height: 24),
-
-                    // Property Type Dropdown
-                    _buildPropertyTypeDropdown(),
-                    const SizedBox(height: 24),
-
-                    // Property Name Field (after property type)
-                    if (_selectedSellType != null || _selectedRentType != null) ...[
-                      _buildPropertyNameField(),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Total Blocks for Complex
-                    if (_shouldShowTotalBlocks()) ...[
-                      _buildTextField(
-                        label: 'Total Number of Blocks',
-                        controller: _totalBlocksController,
-                        hint: 'e.g., 5',
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Area Row
-                    if (config.landExtent || config.builtUpArea) ...[
-                      Row(
-                        children: [
-                          if (config.landExtent)
-                            Expanded(
-                              child: _buildTextField(
-                                label: 'Land Extent (sqft)',
-                                controller: _landExtentController,
-                                hint: 'e.g., 2400',
-                              ),
-                            ),
-                          if (config.landExtent && config.builtUpArea)
-                            const SizedBox(width: 12),
-                          if (config.builtUpArea)
-                            Expanded(
-                              child: _buildTextField(
-                                label: 'Built-up Area (sqft)',
-                                controller: _builtUpAreaController,
-                                hint: 'e.g., 1200',
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Size Range Dropdown
-                    _buildSizeRangeDropdown(),
-                    const SizedBox(height: 20),
-
-                    // Bedrooms
-                    if (config.bedrooms) ...[
-                      _buildSelectionSection(
-                        title: 'Bedrooms',
-                        options: bedroomOptions,
-                        selectedValue: _selectedBedroom,
-                        onSelect: (value) => setState(() => _selectedBedroom = value),
-                        customController: _customBedroomController,
-                        isRequired: true,
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Bathrooms
-                    if (config.bathrooms) ...[
-                      _buildSelectionSection(
-                        title: 'Bathrooms',
-                        options: bathroomOptions,
-                        selectedValue: _selectedBathroom,
-                        onSelect: (value) => setState(() => _selectedBathroom = value),
-                        customController: _customBathroomController,
-                        isRequired: true,
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Floor Info
-                    if (config.floorNo && config.totalFloors) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              label: 'Floor No',
-                              controller: _floorNoController,
-                              hint: 'e.g., 2',
-                            ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Basic Property Details',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                            letterSpacing: -0.3,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildTextField(
-                              label: 'Total Floors',
-                              controller: _totalFloorsController,
-                              hint: 'e.g., 10',
-                            ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Step 1 – Provide basic information about your property',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
                           ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Property For Section
+                        _buildPropertyForSection(),
+                        const SizedBox(height: 24),
+
+                        // Property Type Dropdown
+                        _buildPropertyTypeDropdown(),
+                        const SizedBox(height: 24),
+
+                        // Property Name Field (after property type)
+                        if (_selectedSellType != null || _selectedRentType != null) ...[
+                          _buildPropertyNameField(),
+                          const SizedBox(height: 24),
+
+                          // NEW: Property Description Field
+                          _buildPropertyDescriptionField(),
+                          const SizedBox(height: 24),
                         ],
-                      ),
-                      const SizedBox(height: 20),
-                    ] else if (config.totalFloors) ...[
-                      _buildTextField(
-                        label: 'Total Floors',
-                        controller: _totalFloorsController,
-                        hint: 'e.g., 10',
-                      ),
-                      const SizedBox(height: 20),
-                    ],
 
-                    // Furnishing Status
-                    if (config.furnishing) ...[
-                      _buildFurnishingSection(),
-                      const SizedBox(height: 20),
-                    ],
+                        // Total Blocks for Complex
+                        if (_shouldShowTotalBlocks()) ...[
+                          _buildTextField(
+                            label: 'Total Number of Blocks',
+                            controller: _totalBlocksController,
+                            hint: 'e.g., 5',
+                          ),
+                          const SizedBox(height: 20),
+                        ],
 
-                    // Furnishing Items (if semi or fully furnished)
-                    if (_furnishing == FurnishingStatus.semiFurnished ||
-                        _furnishing == FurnishingStatus.fullyFurnished) ...[
-                      _buildFurnishingsSection(),
-                      const SizedBox(height: 20),
-                    ],
+                        // Land Extent (L x B) for SELL properties only
+                        if (_propertyFor == PropertyFor.sell && config.landExtent) ...[
+                          _buildLandExtentSection(),
+                          const SizedBox(height: 20),
+                        ],
 
-                    // Facing Direction (hide for plot and commercial land)
-                    if (_shouldShowFacingDirection()) ...[
-                      _buildFacingDirection(),
-                      const SizedBox(height: 24),
-                    ],
+                        // Built-up Area
+                        if (config.builtUpArea) ...[
+                          _buildTextField(
+                            label: 'Built-up Area (sqft)',
+                            controller: _builtUpAreaController,
+                            hint: 'e.g., 1200',
+                          ),
+                          const SizedBox(height: 20),
+                        ],
 
-                    // Inside Amenities (hide for plot and commercial land)
-                    if (_shouldShowInsideAmenities()) ...[
-                      _buildInsideAmenitiesSection(),
-                      const SizedBox(height: 24),
-                    ],
+                        // Bedrooms
+                        if (config.bedrooms) ...[
+                          _buildSelectionSection(
+                            title: 'Bedrooms',
+                            options: bedroomOptions,
+                            selectedValue: _selectedBedroom,
+                            onSelect: (value) => setState(() => _selectedBedroom = value),
+                            customController: _customBedroomController,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
 
-                    // Nearby Amenities
-                    _buildNearbyAmenitiesSection(),
-                  ],
-                ),
-              ),
+                        // Bathrooms
+                        if (config.bathrooms) ...[
+                          _buildSelectionSection(
+                            title: 'Bathrooms',
+                            options: bathroomOptions,
+                            selectedValue: _selectedBathroom,
+                            onSelect: (value) => setState(() => _selectedBathroom = value),
+                            customController: _customBathroomController,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Floor Info
+                        if (config.floorNo && config.totalFloors) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  label: 'Floor No',
+                                  controller: _floorNoController,
+                                  hint: 'e.g., 2',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTextField(
+                                  label: 'Total Floors',
+                                  controller: _totalFloorsController,
+                                  hint: 'e.g., 10',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                        ] else if (config.totalFloors) ...[
+                          _buildTextField(
+                            label: 'Total Floors',
+                            controller: _totalFloorsController,
+                            hint: 'e.g., 10',
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Furnishing Status
+                        if (config.furnishing) ...[
+                          _buildFurnishingSection(),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Furnishing Items (if semi or fully furnished) - SELECTION ONLY
+                        if (_furnishing == FurnishingStatus.semiFurnished ||
+                            _furnishing == FurnishingStatus.fullyFurnished) ...[
+                          _buildFurnishingsSection(),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Facing Direction (hide for plot and commercial land)
+                        if (_shouldShowFacingDirection()) ...[
+                          _buildFacingDirection(),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // Inside Amenities (hide for plot and commercial land) - SELECTION ONLY
+                        if (_shouldShowInsideAmenities()) ...[
+                          _buildInsideAmenitiesSection(),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // Nearby Amenities - WITH NAME ENTRY
+                        _buildNearbyAmenitiesSection(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1081,6 +1017,140 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     );
   }
 
+  // NEW: Property Description Field
+  Widget _buildPropertyDescriptionField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.description_outlined,
+              color: Color(0xFF10B981),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Property Description',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '(Optional)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Describe your property in detail to attract potential buyers/tenants',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _propertyDescriptionController,
+          maxLines: 6,
+          minLines: 4,
+          maxLength: 500,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: 'e.g., This beautiful property features spacious rooms, modern amenities, excellent ventilation, and is located in a prime neighborhood with easy access to schools, hospitals, and shopping centers...',
+            hintStyle: const TextStyle(
+              color: Color(0xFF9CA3AF),
+              fontSize: 14,
+              height: 1.5,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            counterText: '', // Hide character counter
+          ),
+          onChanged: (text) {
+            // Show character count when typing
+            setState(() {});
+          },
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${_propertyDescriptionController.text.length}/500 characters',
+              style: TextStyle(
+                fontSize: 11,
+                color: _propertyDescriptionController.text.length > 450
+                    ? const Color(0xFFEF4444)
+                    : Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (_propertyDescriptionController.text.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _propertyDescriptionController.clear();
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.clear,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Clear',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildPropertyForSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1234,14 +1304,20 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     );
   }
 
-  Widget _buildSizeRangeDropdown() {
+  Widget _buildLandExtentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: const [
+            Icon(
+              Icons.straighten,
+              color: Color(0xFF10B981),
+              size: 20,
+            ),
+            SizedBox(width: 8),
             Text(
-              'Size Range (sqft)',
+              'Land Extent',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1260,43 +1336,152 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
           ],
         ),
         const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: DropdownButton<String>(
-            value: _selectedSizeRange,
-            hint: const Text(
-              'Select size range',
-              style: TextStyle(
-                color: Color(0xFF9CA3AF),
-                fontSize: 15,
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _landLengthController,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Length is required';
+                  }
+                  if (!RegExp(r'^\d+$').hasMatch(value.trim())) {
+                    return 'Enter numbers only';
+                  }
+                  return null;
+                },
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'Length (ft)',
+                  hintText: 'e.g., 60',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444)),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
               ),
             ),
-            isExpanded: true,
-            underline: const SizedBox(),
-            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
-            style: const TextStyle(
-              color: Color(0xFF111827),
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '×',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
             ),
-            items: sizeRangeOptions.map((range) {
-              return DropdownMenuItem(
-                value: range,
-                child: Text(range),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedSizeRange = value;
-              });
-            },
-          ),
+            Expanded(
+              child: TextFormField(
+                controller: _landBreadthController,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Breadth is required';
+                  }
+                  if (!RegExp(r'^\d+$').hasMatch(value.trim())) {
+                    return 'Enter numbers only';
+                  }
+                  return null;
+                },
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'Breadth (ft)',
+                  hintText: 'e.g., 40',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444)),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 8),
+        if (_landLengthController.text.isNotEmpty && 
+            _landBreadthController.text.isNotEmpty &&
+            RegExp(r'^\d+$').hasMatch(_landLengthController.text) &&
+            RegExp(r'^\d+$').hasMatch(_landBreadthController.text))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF10B981),
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Total: ${int.parse(_landLengthController.text) * int.parse(_landBreadthController.text)} sqft',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1643,15 +1828,14 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
           runSpacing: 10,
           children: [
             ...allFurnishings.map((item) {
-              final isSelected = _furnishingControllers.containsKey(item);
+              final isSelected = _selectedFurnishings.contains(item);
               return GestureDetector(
                 onTap: () {
                   setState(() {
                     if (isSelected) {
-                      _furnishingControllers[item]?.dispose();
-                      _furnishingControllers.remove(item);
+                      _selectedFurnishings.remove(item);
                     } else {
-                      _furnishingControllers[item] = TextEditingController();
+                      _selectedFurnishings.add(item);
                     }
                   });
                 },
@@ -1712,41 +1896,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
             ),
           ],
         ),
-        // Show text fields for selected furnishings
-        ...(_furnishingControllers.entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: TextField(
-              controller: entry.value,
-              decoration: InputDecoration(
-                labelText: '${entry.key} - Enter details',
-                hintText: 'e.g., 2 King Size Beds',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 14,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          );
-        }).toList()),
       ],
     );
   }
@@ -1790,15 +1939,14 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
           runSpacing: 10,
           children: [
             ...allInsideAmenities.map((item) {
-              final isSelected = _insideAmenityControllers.containsKey(item);
+              final isSelected = _selectedInsideAmenities.contains(item);
               return GestureDetector(
                 onTap: () {
                   setState(() {
                     if (isSelected) {
-                      _insideAmenityControllers[item]?.dispose();
-                      _insideAmenityControllers.remove(item);
+                      _selectedInsideAmenities.remove(item);
                     } else {
-                      _insideAmenityControllers[item] = TextEditingController();
+                      _selectedInsideAmenities.add(item);
                     }
                   });
                 },
@@ -1859,56 +2007,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
             ),
           ],
         ),
-        // Show text fields for selected inside amenities (MANDATORY)
-        ...(_insideAmenityControllers.entries.map((entry) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: TextFormField(
-              controller: entry.value,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return '${entry.key} details are required';
-                }
-                return null;
-              },
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              decoration: InputDecoration(
-                labelText: '${entry.key} - Enter details *',
-                hintText: 'e.g., 2 Parking Spots, 24/7 Security',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 14,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFEF4444)),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          );
-        }).toList()),
       ],
     );
   }
@@ -2151,10 +2249,10 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                 setState(() {
                   if (isForFurnishing) {
                     _customFurnishings.add(controller.text.trim());
-                    _furnishingControllers[controller.text.trim()] = TextEditingController();
+                    _selectedFurnishings.add(controller.text.trim());
                   } else if (isForInsideAmenities) {
                     _customInsideAmenities.add(controller.text.trim());
-                    _insideAmenityControllers[controller.text.trim()] = TextEditingController();
+                    _selectedInsideAmenities.add(controller.text.trim());
                   } else {
                     _customAmenities.add(controller.text.trim());
                     _amenityControllers[controller.text.trim()] = TextEditingController();
@@ -2204,31 +2302,31 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-            onPressed: _handleNextStep,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Next Step',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
+                onPressed: _handleNextStep,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
+                  elevation: 0,
                 ),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward, size: 20),
-              ],
-            ),
-          ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Next Step',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Icon(Icons.arrow_forward, size: 20),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

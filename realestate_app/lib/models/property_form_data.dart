@@ -30,6 +30,7 @@ class PropertyFormData {
 
   // Step 3: Pricing & Details
   String? price;
+  bool? priceNegotiable;
   String? pricePerSqft;
   String? udsSqft;
   String? maintenance;
@@ -55,6 +56,9 @@ class PropertyFormData {
   String? rentEscalationPercent;
   String? leaseType;
   bool? registrationRequired;
+
+  // Tenant Preferences (✅ NEW FIELD)
+  List<String>? tenantPreferences;
 
   // Step 4: Media
   List<XFile>? images;
@@ -112,6 +116,7 @@ class PropertyFormData {
       'pincode': pincode,
       'google_maps_link': googleMapsLink,
       'price': price != null ? double.tryParse(price!) : null,
+      'price_negotiable': priceNegotiable,
       'price_per_sqft': pricePerSqft != null ? double.tryParse(pricePerSqft!) : null,
       'uds_sqft': udsSqft != null ? double.tryParse(udsSqft!) : null,
       'maintenance_monthly': maintenance != null ? double.tryParse(maintenance!) : null,
@@ -135,6 +140,7 @@ class PropertyFormData {
       'rent_escalation_percent': rentEscalationPercent != null ? double.tryParse(rentEscalationPercent!) : null,
       'lease_type': leaseType,
       'registration_required': registrationRequired,
+      'tenant_preferences': tenantPreferences, // ✅ ADDED THIS LINE
       'cover_image_url': coverImageUrl,
       'image_urls': imageUrls,
       'video_url': videoUrl,

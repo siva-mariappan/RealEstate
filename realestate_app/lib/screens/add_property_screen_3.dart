@@ -17,7 +17,36 @@ bool isEligibleForLease(RentPropertyType? rentType) {
     RentPropertyType.warehouse,
     RentPropertyType.independentFloor,
     RentPropertyType.house,
+    RentPropertyType.flat,
+    RentPropertyType.villa,
   ].contains(rentType);
+}
+
+// ========== TENANT PREFERENCE HELPER ==========
+bool shouldShowTenantPreferences(RentPropertyType? rentType) {
+  if (rentType == null) return false;
+
+  return [
+    RentPropertyType.flat,
+    RentPropertyType.house,
+    RentPropertyType.villa,
+    RentPropertyType.independentFloor,
+    RentPropertyType.pgHostel,
+    RentPropertyType.sharedRoom,
+  ].contains(rentType);
+}
+
+List<String> getTenantPreferenceOptions(RentPropertyType? rentType) {
+  if (rentType == null) return [];
+
+  // For PG/Hostel and Shared Room
+  if (rentType == RentPropertyType.pgHostel || 
+      rentType == RentPropertyType.sharedRoom) {
+    return ['Students', 'Professionals', 'Male', 'Female', 'Anyone'];
+  }
+
+  // For Flat, House, Villa, Independent Floor
+  return ['Bachelors', 'Family', 'Couples'];
 }
 
 // ========== STEP 3 VISIBILITY CONFIG ==========
@@ -49,6 +78,9 @@ class Step3Visibility {
   // Lease-specific (only for eligible types)
   final bool showLeaseToggle;
 
+  // Tenant Preferences
+  final bool tenantPreferences;
+
   // Shop/Showroom specific
   final bool floorLevel;
   final bool roadFacing;
@@ -75,6 +107,7 @@ class Step3Visibility {
     this.maintenanceIncluded = false,
     this.maxOccupancy = false,
     this.showLeaseToggle = false,
+    this.tenantPreferences = false,
     this.floorLevel = false,
     this.roadFacing = false,
     this.ceilingHeight = false,
@@ -112,7 +145,6 @@ Step3Visibility getStep3Visibility({
         return const Step3Visibility(
           expectedPrice: true,
           priceNegotiable: true,
-          pricePerSqft: true,
           uds: true,
           maintenance: true,
           ageOfProperty: true,
@@ -132,7 +164,6 @@ Step3Visibility getStep3Visibility({
           expectedPrice: true,
           priceNegotiable: true,
           ageOfProperty: true,
-          maintenance: true,
           possession: true,
         );
 
@@ -140,7 +171,6 @@ Step3Visibility getStep3Visibility({
         return const Step3Visibility(
           expectedPrice: true,
           priceNegotiable: true,
-          maintenance: true,
           ageOfProperty: true,
         );
 
@@ -148,9 +178,7 @@ Step3Visibility getStep3Visibility({
         return const Step3Visibility(
           expectedPrice: true,
           priceNegotiable: true,
-          pricePerSqft: true,
           leaseStatus: true,
-          monthlyRentalIncome: true,
           ageOfProperty: true,
         );
     }
@@ -162,87 +190,98 @@ Step3Visibility getStep3Visibility({
       case RentPropertyType.flat:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           maintenance: true,
           securityDeposit: true,
           possession: true,
-          ageOfProperty: true,
+          showLeaseToggle: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.house:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           securityDeposit: true,
-          ageOfProperty: true,
           possession: true,
-          showLeaseToggle: true, // ✅ Eligible for lease
+          showLeaseToggle: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.villa:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           maintenance: true,
           securityDeposit: true,
-          ageOfProperty: true,
           possession: true,
+          showLeaseToggle: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.pgHostel:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           securityDeposit: true,
           foodIncluded: true,
           maintenanceIncluded: true,
           possession: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.sharedRoom:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           securityDeposit: true,
           maxOccupancy: true,
           possession: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.independentFloor:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           maintenance: true,
           securityDeposit: true,
-          ageOfProperty: true,
           possession: true,
-          showLeaseToggle: true, // ✅ Eligible for lease
+          showLeaseToggle: true,
+          tenantPreferences: true, // ✅ Added
         );
 
       case RentPropertyType.commercialBuilding:
       case RentPropertyType.officeSpace:
         return const Step3Visibility(
           monthlyRent: true,
-          pricePerSqft: true,
+          priceNegotiable: true,
           maintenance: true,
           securityDeposit: true,
           possession: true,
-          showLeaseToggle: true, // ✅ Eligible for lease
+          showLeaseToggle: true,
         );
 
       case RentPropertyType.shopShowroom:
         return const Step3Visibility(
           monthlyRent: true,
+          priceNegotiable: true,
           securityDeposit: true,
           floorLevel: true,
           roadFacing: true,
           possession: true,
-          showLeaseToggle: true, // ✅ Eligible for lease
+          showLeaseToggle: true,
         );
 
       case RentPropertyType.warehouse:
         return const Step3Visibility(
-          pricePerSqft: true,
           monthlyRent: true,
+          priceNegotiable: true,
           securityDeposit: true,
           ceilingHeight: true,
           truckAccess: true,
           fireSafety: true,
-          showLeaseToggle: true, // ✅ Eligible for lease
+          showLeaseToggle: true,
         );
     }
   }
@@ -297,6 +336,9 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
   // Lease state
   bool? _isLeaseProperty; // null = not selected, true = lease, false = monthly rent
   bool _registrationRequired = false;
+
+  // Tenant Preferences (✅ NEW)
+  List<String> _selectedTenantPreferences = [];
 
   String? _selectedAge;
   String? _selectedPossession;
@@ -422,6 +464,9 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
     if (formData.possessionStatus != null) {
       _selectedPossession = formData.possessionStatus;
     }
+    if (formData.priceNegotiable != null) {
+      _isNegotiable = formData.priceNegotiable!;
+    }
 
     // Load lease details
     if (formData.isLeaseProperty != null) {
@@ -447,6 +492,11 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
     }
     if (formData.registrationRequired != null) {
       _registrationRequired = formData.registrationRequired!;
+    }
+
+    // Load tenant preferences (✅ NEW)
+    if (formData.tenantPreferences != null) {
+      _selectedTenantPreferences = List<String>.from(formData.tenantPreferences!);
     }
   }
 
@@ -478,6 +528,36 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
   }
 
   void _handleNextStep() {
+    // ✅ NEW: Validate lease selection if showLeaseToggle is true
+    final visibility = getStep3Visibility(
+      propertyFor: widget.propertyFor,
+      sellType: widget.sellType,
+      rentType: widget.rentType,
+    );
+
+    if (visibility.showLeaseToggle && _isLeaseProperty == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select whether this property is available on lease'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // ✅ NEW: Validate tenant preferences if required
+    if (visibility.tenantPreferences && _selectedTenantPreferences.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one tenant preference'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       // Save Step 3 data to provider
       final provider = Provider.of<PropertyFormProvider>(context, listen: false);
@@ -494,6 +574,7 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
       formData.annualYield = _annualYieldController.text;
       formData.maxOccupancy = _maxOccupancyController.text;
       formData.ceilingHeight = _ceilingHeightController.text;
+      formData.priceNegotiable = _isNegotiable;
 
       // Property details
       formData.ageOfProperty = _selectedAge;
@@ -508,6 +589,11 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
       formData.rentEscalationPercent = _rentEscalationController.text;
       formData.leaseType = _selectedLeaseType;
       formData.registrationRequired = _registrationRequired;
+
+      // Tenant preferences (✅ NEW)
+      formData.tenantPreferences = _selectedTenantPreferences.isNotEmpty 
+          ? _selectedTenantPreferences 
+          : null;
 
       provider.updateFormData(formData);
 
@@ -599,310 +685,320 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text(
-                        "Pricing & Property Details",
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF111827),
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Set the right price and share property details",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ========== LEASE TOGGLE (Only for eligible rent properties) ==========
-                      if (visibility.showLeaseToggle) ...[
-                        _buildLeaseToggleSection(),
-                        const SizedBox(height: 24),
-
-                        // Helper text
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          const Text(
+                            "Pricing & Property Details",
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF111827),
+                              letterSpacing: -0.5,
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline,
-                                color: Color(0xFF3B82F6),
-                                size: 20,
+                          const SizedBox(height: 10),
+                          Text(
+                            "Set the right price and share property details",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ========== LEASE TOGGLE (Only for eligible rent properties) ==========
+                          if (visibility.showLeaseToggle) ...[
+                            _buildLeaseToggleSection(),
+                            const SizedBox(height: 24),
+
+                            // Helper text
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFBFDBFE)),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Lease rentals are ideal for commercial or long-term tenants',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: const Color(0xFF1E40AF),
-                                    fontWeight: FontWeight.w500,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    color: Color(0xFF3B82F6),
+                                    size: 20,
                                   ),
-                                ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Lease rentals are ideal for commercial or long-term tenants',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: const Color(0xFF1E40AF),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // EXPECTED PRICE (Sell)
+                          if (visibility.expectedPrice) ...[
+                            _buildPriceField(
+                              controller: _priceController,
+                              label: 'Expected Price',
+                              hint: '₹ Enter amount',
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ========== MONTHLY RENT OR LEASE FIELDS (Rent) ==========
+                          if (visibility.monthlyRent) ...[
+                            // If lease toggle is shown and user selected lease = YES
+                            if (visibility.showLeaseToggle && _isLeaseProperty == true) ...[
+                              _buildLeaseFields(),
+                            ]
+                            // Otherwise show regular monthly rent (or if lease = NO)
+                            else if (!visibility.showLeaseToggle || _isLeaseProperty == false) ...[
+                              _buildPriceField(
+                                controller: _monthlyRentController,
+                                label: widget.rentType == RentPropertyType.pgHostel
+                                    ? 'Rent per Bed/Room'
+                                    : widget.rentType == RentPropertyType.sharedRoom
+                                        ? 'Monthly Rent (Per Person)'
+                                        : 'Expected Monthly Rent',
+                                hint: '₹ Enter monthly rent',
+                              ),
+                              const SizedBox(height: 20),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                          ],
 
-                      // EXPECTED PRICE (Sell)
-                      if (visibility.expectedPrice) ...[
-                        _buildPriceField(
-                          controller: _priceController,
-                          label: 'Expected Price',
-                          hint: '₹ Enter amount',
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                          // PRICE NEGOTIABLE (Now for both Sell and Rent)
+                          if (visibility.priceNegotiable) ...[
+                            _buildToggle(
+                              title: widget.propertyFor == PropertyFor.sell 
+                                  ? 'Price Negotiable'
+                                  : 'Rent Negotiable',
+                              subtitle: widget.propertyFor == PropertyFor.sell
+                                  ? 'Allow buyers to make offers'
+                                  : 'Allow tenants to negotiate rent',
+                              value: _isNegotiable,
+                              onChanged: (val) => setState(() => _isNegotiable = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
 
-                      // ========== MONTHLY RENT OR LEASE FIELDS (Rent) ==========
-                      if (visibility.monthlyRent) ...[
-                        // If lease toggle is shown and user selected lease = YES
-                        if (visibility.showLeaseToggle && _isLeaseProperty == true) ...[
-                          _buildLeaseFields(),
-                        ]
-                        // Otherwise show regular monthly rent (or if lease = NO)
-                        else if (!visibility.showLeaseToggle || _isLeaseProperty == false) ...[
-                          _buildPriceField(
-                            controller: _monthlyRentController,
-                            label: widget.rentType == RentPropertyType.pgHostel
-                                ? 'Rent per Bed/Room'
-                                : widget.rentType == RentPropertyType.sharedRoom
-                                ? 'Monthly Rent (Per Person)'
-                                : 'Expected Monthly Rent',
-                            hint: '₹ Enter monthly rent',
-                          ),
-                          const SizedBox(height: 20),
+                          // PRICE PER SQFT (Only for Plot and Commercial Land in Sell)
+                          if (visibility.pricePerSqft) ...[
+                            _buildTextField(
+                              controller: _pricePerSqftController,
+                              label: 'Price per Sqft',
+                              hint: '₹ per sqft',
+                              icon: Icons.straighten,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // SECURITY DEPOSIT (Rent only - but not for lease since lease has its own)
+                          if (visibility.securityDeposit && (!visibility.showLeaseToggle || _isLeaseProperty == false)) ...[
+                            _buildPriceField(
+                              controller: _securityDepositController,
+                              label: 'Security Deposit',
+                              hint: '₹ Enter deposit amount',
+                              isRequired: true,
+                            ),
+                            const SizedBox(height: 20),
+
+                            // RENT ESCALATION for regular rental properties
+                            _buildTextField(
+                              controller: _rentEscalationController,
+                              label: 'Rent Escalation (% per year)',
+                              hint: 'e.g., 5',
+                              icon: Icons.trending_up,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // UNDIVIDED SHARE (UDS) - Only for Sell + Flat
+                          if (visibility.uds) ...[
+                            _buildUDSField(),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // MAINTENANCE CHARGES
+                          if (visibility.maintenance) ...[
+                            _buildTextField(
+                              controller: _maintenanceController,
+                              label: 'Maintenance Charges (per month)',
+                              hint: '₹ Enter amount',
+                              icon: Icons.build,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // MONTHLY RENTAL INCOME
+                          if (visibility.monthlyRentalIncome) ...[
+                            _buildPriceField(
+                              controller: _monthlyRentalIncomeController,
+                              label: 'Monthly Rental (if leased)',
+                              hint: '₹ Enter monthly rental income',
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ANNUAL YIELD
+                          if (visibility.annualYield) ...[
+                            _buildTextField(
+                              controller: _annualYieldController,
+                              label: 'Annual Yield (%)',
+                              hint: 'e.g., 5.5',
+                              icon: Icons.percent,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // LEASE STATUS
+                          if (visibility.leaseStatus) ...[
+                            _buildSelectionSection(
+                              title: 'Occupancy Status',
+                              options: _leaseStatusOptions,
+                              selectedValue: _selectedLeaseStatus,
+                              onSelect: (val) => setState(() => _selectedLeaseStatus = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // ========== TENANT PREFERENCES (✅ NEW) ==========
+                          if (visibility.tenantPreferences) ...[
+                            _buildTenantPreferencesSection(),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // FOOD INCLUDED (PG/Hostel)
+                          if (visibility.foodIncluded) ...[
+                            _buildToggle(
+                              title: 'Food Included',
+                              subtitle: 'Meals provided with the rent',
+                              value: _foodIncluded,
+                              onChanged: (val) => setState(() => _foodIncluded = val),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // MAINTENANCE INCLUDED (PG/Hostel)
+                          if (visibility.maintenanceIncluded) ...[
+                            _buildToggle(
+                              title: 'Maintenance Included',
+                              subtitle: 'All utilities included in rent',
+                              value: _maintenanceIncluded,
+                              onChanged: (val) => setState(() => _maintenanceIncluded = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // MAX OCCUPANCY (Shared Room)
+                          if (visibility.maxOccupancy) ...[
+                            _buildTextField(
+                              controller: _maxOccupancyController,
+                              label: 'Maximum Occupancy',
+                              hint: 'e.g., 2 or 3 persons',
+                              icon: Icons.people,
+                              isRequired: true,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // FLOOR LEVEL (Shop/Showroom)
+                          if (visibility.floorLevel) ...[
+                            _buildSelectionSection(
+                              title: 'Floor Level',
+                              options: _floorLevelOptions,
+                              selectedValue: _selectedFloorLevel,
+                              onSelect: (val) => setState(() => _selectedFloorLevel = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // ROAD FACING (Shop/Showroom)
+                          if (visibility.roadFacing) ...[
+                            _buildToggle(
+                              title: 'Road Facing',
+                              subtitle: 'Direct access from main road',
+                              value: _roadFacing,
+                              onChanged: (val) => setState(() => _roadFacing = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // CEILING HEIGHT (Warehouse)
+                          if (visibility.ceilingHeight) ...[
+                            _buildTextField(
+                              controller: _ceilingHeightController,
+                              label: 'Ceiling Height (feet)',
+                              hint: 'e.g., 20',
+                              icon: Icons.height,
+                              isRequired: false,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // TRUCK ACCESS (Warehouse)
+                          if (visibility.truckAccess) ...[
+                            _buildToggle(
+                              title: 'Truck Access',
+                              subtitle: 'Heavy vehicle loading/unloading facility',
+                              value: _truckAccess,
+                              onChanged: (val) => setState(() => _truckAccess = val),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // FIRE SAFETY (Warehouse)
+                          if (visibility.fireSafety) ...[
+                            _buildToggle(
+                              title: 'Fire Safety Compliance',
+                              subtitle: 'Fire safety systems installed',
+                              value: _fireSafety,
+                              onChanged: (val) => setState(() => _fireSafety = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // AGE OF PROPERTY (Only for Sell properties)
+                          if (visibility.ageOfProperty) ...[
+                            _buildSelectionSection(
+                              title: 'Age of Property',
+                              options: _propertyAges,
+                              selectedValue: _selectedAge,
+                              onSelect: (val) => setState(() => _selectedAge = val),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // POSSESSION STATUS
+                          if (visibility.possession) ...[
+                            _buildSelectionSection(
+                              title: widget.propertyFor == PropertyFor.rent
+                                  ? 'Availability'
+                                  : 'Possession Status',
+                              options: _possessionOptions,
+                              selectedValue: _selectedPossession,
+                              onSelect: (val) => setState(() => _selectedPossession = val),
+                            ),
+                          ],
                         ],
-                      ],
-
-                      // PRICE NEGOTIABLE (Sell only)
-                      if (visibility.priceNegotiable) ...[
-                        _buildToggle(
-                          title: 'Price Negotiable',
-                          subtitle: 'Allow buyers to make offers',
-                          value: _isNegotiable,
-                          onChanged: (val) => setState(() => _isNegotiable = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // PRICE PER SQFT
-                      if (visibility.pricePerSqft) ...[
-                        _buildTextField(
-                          controller: _pricePerSqftController,
-                          label: 'Price per Sqft',
-                          hint: '₹ per sqft',
-                          icon: Icons.straighten,
-                          isRequired: widget.rentType == RentPropertyType.warehouse,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // SECURITY DEPOSIT (Rent only - but not for lease since lease has its own)
-                      if (visibility.securityDeposit && (!visibility.showLeaseToggle || _isLeaseProperty == false)) ...[
-                        _buildPriceField(
-                          controller: _securityDepositController,
-                          label: 'Security Deposit',
-                          hint: '₹ Enter deposit amount',
-                          isRequired: true,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // RENT ESCALATION for regular rental properties
-                        _buildTextField(
-                          controller: _rentEscalationController,
-                          label: 'Rent Escalation (% per year)',
-                          hint: 'e.g., 5',
-                          icon: Icons.trending_up,
-                          isRequired: false,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // UNDIVIDED SHARE (UDS) - Only for Sell + Flat
-                      if (visibility.uds) ...[
-                        _buildUDSField(),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // MAINTENANCE CHARGES
-                      if (visibility.maintenance) ...[
-                        _buildTextField(
-                          controller: _maintenanceController,
-                          label: 'Maintenance Charges (per month)',
-                          hint: '₹ Enter amount',
-                          icon: Icons.build,
-                          isRequired: false,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // MONTHLY RENTAL INCOME
-                      if (visibility.monthlyRentalIncome) ...[
-                        _buildPriceField(
-                          controller: _monthlyRentalIncomeController,
-                          label: 'Monthly Rental (if leased)',
-                          hint: '₹ Enter monthly rental income',
-                          isRequired: false,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // ANNUAL YIELD
-                      if (visibility.annualYield) ...[
-                        _buildTextField(
-                          controller: _annualYieldController,
-                          label: 'Annual Yield (%)',
-                          hint: 'e.g., 5.5',
-                          icon: Icons.percent,
-                          isRequired: false,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // LEASE STATUS
-                      if (visibility.leaseStatus) ...[
-                        _buildSelectionSection(
-                          title: 'Occupancy Status',
-                          options: _leaseStatusOptions,
-                          selectedValue: _selectedLeaseStatus,
-                          onSelect: (val) => setState(() => _selectedLeaseStatus = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // FOOD INCLUDED (PG/Hostel)
-                      if (visibility.foodIncluded) ...[
-                        _buildToggle(
-                          title: 'Food Included',
-                          subtitle: 'Meals provided with the rent',
-                          value: _foodIncluded,
-                          onChanged: (val) => setState(() => _foodIncluded = val),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // MAINTENANCE INCLUDED (PG/Hostel)
-                      if (visibility.maintenanceIncluded) ...[
-                        _buildToggle(
-                          title: 'Maintenance Included',
-                          subtitle: 'All utilities included in rent',
-                          value: _maintenanceIncluded,
-                          onChanged: (val) => setState(() => _maintenanceIncluded = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // MAX OCCUPANCY (Shared Room)
-                      if (visibility.maxOccupancy) ...[
-                        _buildTextField(
-                          controller: _maxOccupancyController,
-                          label: 'Maximum Occupancy',
-                          hint: 'e.g., 2 or 3 persons',
-                          icon: Icons.people,
-                          isRequired: true,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // FLOOR LEVEL (Shop/Showroom)
-                      if (visibility.floorLevel) ...[
-                        _buildSelectionSection(
-                          title: 'Floor Level',
-                          options: _floorLevelOptions,
-                          selectedValue: _selectedFloorLevel,
-                          onSelect: (val) => setState(() => _selectedFloorLevel = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // ROAD FACING (Shop/Showroom)
-                      if (visibility.roadFacing) ...[
-                        _buildToggle(
-                          title: 'Road Facing',
-                          subtitle: 'Direct access from main road',
-                          value: _roadFacing,
-                          onChanged: (val) => setState(() => _roadFacing = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // CEILING HEIGHT (Warehouse)
-                      if (visibility.ceilingHeight) ...[
-                        _buildTextField(
-                          controller: _ceilingHeightController,
-                          label: 'Ceiling Height (feet)',
-                          hint: 'e.g., 20',
-                          icon: Icons.height,
-                          isRequired: false,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // TRUCK ACCESS (Warehouse)
-                      if (visibility.truckAccess) ...[
-                        _buildToggle(
-                          title: 'Truck Access',
-                          subtitle: 'Heavy vehicle loading/unloading facility',
-                          value: _truckAccess,
-                          onChanged: (val) => setState(() => _truckAccess = val),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // FIRE SAFETY (Warehouse)
-                      if (visibility.fireSafety) ...[
-                        _buildToggle(
-                          title: 'Fire Safety Compliance',
-                          subtitle: 'Fire safety systems installed',
-                          value: _fireSafety,
-                          onChanged: (val) => setState(() => _fireSafety = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // AGE OF PROPERTY
-                      if (visibility.ageOfProperty) ...[
-                        _buildSelectionSection(
-                          title: 'Age of Property',
-                          options: _propertyAges,
-                          selectedValue: _selectedAge,
-                          onSelect: (val) => setState(() => _selectedAge = val),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // POSSESSION STATUS
-                      if (visibility.possession) ...[
-                        _buildSelectionSection(
-                          title: widget.propertyFor == PropertyFor.rent
-                              ? 'Availability'
-                              : 'Possession Status',
-                          options: _possessionOptions,
-                          selectedValue: _selectedPossession,
-                          onSelect: (val) => setState(() => _selectedPossession = val),
-                        ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
 
           // Navigation Buttons
           _buildNavigationButtons(),
@@ -1413,13 +1509,26 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Is this property available on Lease?',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-          ),
+        Row(
+          children: [
+            const Text(
+              'Is this property available on Lease?',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              '*',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFEF4444),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(
@@ -1544,6 +1653,113 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  // ========== TENANT PREFERENCES SECTION (✅ NEW) ==========
+  Widget _buildTenantPreferencesSection() {
+    final options = getTenantPreferenceOptions(widget.rentType);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.people,
+              color: Color(0xFF10B981),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Tenant Preferences',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              '*',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFEF4444),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select all that apply',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: options.map((option) {
+            final isSelected = _selectedTenantPreferences.contains(option);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedTenantPreferences.remove(option);
+                  } else {
+                    _selectedTenantPreferences.add(option);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF10B981) : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFE5E7EB),
+                    width: 2,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    if (isSelected) const SizedBox(width: 8),
+                    Text(
+                      option,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -1701,68 +1917,68 @@ class _AddPropertyStep3ScreenState extends State<AddPropertyStep3Screen> {
               children: [
                 // Back Button
                 OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF10B981),
-                side: const BorderSide(
-                  color: Color(0xFF10B981),
-                  width: 2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-              ),
-              child: const Text(
-                'Back',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Next Button
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _handleNextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF10B981),
+                    side: const BorderSide(
+                      color: Color(0xFF10B981),
+                      width: 2,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    elevation: 0,
-                    shadowColor: const Color(0xFF10B981).withOpacity(0.3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                   ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Next Step',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
+                  child: const Text(
+                    'Back',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Next Button
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _handleNextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                        shadowColor: const Color(0xFF10B981).withOpacity(0.3),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Next Step',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, size: 20),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 20),
-                  ],
+                  ),
                 ),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 }

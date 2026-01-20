@@ -7,8 +7,12 @@ import '../models/property_form_data.dart';
 class PropertySubmissionService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Main method to submit property
-  Future<String> submitProperty(PropertyFormData formData) async {
+  // Main method to submit property with subscription plan support
+  Future<String> submitProperty(
+    PropertyFormData formData, {
+    String? subscriptionPlan,
+    bool isVerified = false,
+  }) async {
     try {
       // Get current user ID
       final userId = _supabase.auth.currentUser?.id;
@@ -58,6 +62,21 @@ class PropertySubmissionService {
         vrContentUrl: vrContentUrl,
       );
 
+      // Add subscription and verification details
+      propertyData['subscription_plan'] = subscriptionPlan ?? 'free';
+      propertyData['is_verified'] = isVerified;
+      
+      // Set verification status based on plan
+      if (subscriptionPlan == null || subscriptionPlan == 'free') {
+        propertyData['verification_status'] = 'not_verified';
+      } else {
+        propertyData['verification_status'] = 'pending_admin_review';
+      }
+      
+      // Add timestamps
+      propertyData['created_at'] = DateTime.now().toIso8601String();
+      propertyData['updated_at'] = DateTime.now().toIso8601String();
+
       final response = await _supabase
           .from('properties')
           .insert(propertyData)
@@ -67,6 +86,9 @@ class PropertySubmissionService {
       final propertyId = response['id'] as String;
 
       print('✅ Property submitted successfully! ID: $propertyId');
+      print('📋 Subscription Plan: ${subscriptionPlan ?? 'free'}');
+      print('🔒 Verification Status: ${propertyData['verification_status']}');
+      
       return propertyId;
     } catch (e) {
       print('❌ Error submitting property: $e');
@@ -157,7 +179,12 @@ class PropertySubmissionService {
   }
 
   // Update existing property
-  Future<void> updateProperty(String propertyId, PropertyFormData formData) async {
+  Future<void> updateProperty(
+    String propertyId,
+    PropertyFormData formData, {
+    String? subscriptionPlan,
+    bool? isVerified,
+  }) async {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
@@ -177,13 +204,36 @@ class PropertySubmissionService {
         videoUrl = await _uploadVideo(formData.video!, userId);
       }
 
+      String? arContentUrl;
+      if (formData.arFile != null) {
+        arContentUrl = await _uploadARVRContent(formData.arFile!, userId, 'ar');
+      }
+
+      String? vrContentUrl;
+      if (formData.vrFile != null) {
+        vrContentUrl = await _uploadARVRContent(formData.vrFile!, userId, 'vr');
+      }
+
       // Update property
       final propertyData = formData.toJson(
         userId: userId,
         coverImageUrl: coverImageUrl,
         imageUrls: imageUrls,
         videoUrl: videoUrl,
+        arContentUrl: arContentUrl,
+        vrContentUrl: vrContentUrl,
       );
+
+      // Update subscription and verification if provided
+      if (subscriptionPlan != null) {
+        propertyData['subscription_plan'] = subscriptionPlan;
+      }
+      if (isVerified != null) {
+        propertyData['is_verified'] = isVerified;
+      }
+      
+      // Update timestamp
+      propertyData['updated_at'] = DateTime.now().toIso8601String();
 
       await _supabase
           .from('properties')
@@ -215,6 +265,81 @@ class PropertySubmissionService {
       print('✅ Property deleted successfully!');
     } catch (e) {
       print('❌ Error deleting property: $e');
+      rethrow;
+    }
+  }
+
+  // Admin function to verify a property
+  Future<void> verifyProperty(String propertyId, bool isVerified) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _supabase
+          .from('properties')
+          .update({
+            'is_verified': isVerified,
+            'verification_status': isVerified ? 'verified' : 'pending_admin_review',
+            'verified_at': isVerified ? DateTime.now().toIso8601String() : null,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', propertyId);
+
+      print('✅ Property verification status updated!');
+    } catch (e) {
+      print('❌ Error updating verification status: $e');
+      rethrow;
+    }
+  }
+
+  // Get properties by subscription plan (for admin)
+  Future<List<Map<String, dynamic>>> getPropertiesByPlan(String subscriptionPlan) async {
+    try {
+      final response = await _supabase
+          .from('properties')
+          .select()
+          .eq('subscription_plan', subscriptionPlan)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching properties by plan: $e');
+      rethrow;
+    }
+  }
+
+  // Get properties pending verification (for admin)
+  Future<List<Map<String, dynamic>>> getPendingVerificationProperties() async {
+    try {
+      final response = await _supabase
+          .from('properties')
+          .select()
+          .eq('verification_status', 'pending_admin_review')
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching pending properties: $e');
+      rethrow;
+    }
+  }
+
+  // Update subscription plan (for admin after payment confirmation)
+  Future<void> updateSubscriptionPlan(String propertyId, String newPlan) async {
+    try {
+      await _supabase
+          .from('properties')
+          .update({
+            'subscription_plan': newPlan,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', propertyId);
+
+      print('✅ Subscription plan updated to $newPlan');
+    } catch (e) {
+      print('❌ Error updating subscription plan: $e');
       rethrow;
     }
   }
