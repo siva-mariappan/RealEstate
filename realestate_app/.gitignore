@@ -1,0 +1,18 @@
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+
+# Platform specific
+android/.gradle/
+ios/Pods/
+macos/Pods/
+
+# IDE
+.vscode/
+.idea/
+
+# Chrome / Flutter web cache
+chrome-device/

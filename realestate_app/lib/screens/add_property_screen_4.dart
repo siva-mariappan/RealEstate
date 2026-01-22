@@ -26,12 +26,9 @@ class AddPropertyStep4Screen extends StatefulWidget {
 
 class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _virtualTourController = TextEditingController();
 
   List<XFile> _images = [];
   XFile? _video;
-  XFile? _arFile;
-  XFile? _vrFile;
   String? _imageError;
 
   @override
@@ -52,21 +49,6 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
     if (formData.video != null) {
       _video = formData.video;
     }
-    if (formData.virtualTourUrl != null) {
-      _virtualTourController.text = formData.virtualTourUrl!;
-    }
-    if (formData.arFile != null) {
-      _arFile = formData.arFile;
-    }
-    if (formData.vrFile != null) {
-      _vrFile = formData.vrFile;
-    }
-  }
-
-  @override
-  void dispose() {
-    _virtualTourController.dispose();
-    super.dispose();
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -238,52 +220,6 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
     });
   }
 
-  Future<void> _pickARFile() async {
-    try {
-      final XFile? file = await _picker.pickVideo(
-        source: ImageSource.gallery,
-      );
-      if (file != null) {
-        setState(() {
-          _arFile = file;
-        });
-        _showSuccess('AR file selected successfully!');
-      }
-    } catch (e) {
-      _showError('Error picking AR file: $e');
-      debugPrint('Error picking AR file: $e');
-    }
-  }
-
-  void _removeARFile() {
-    setState(() {
-      _arFile = null;
-    });
-  }
-
-  Future<void> _pickVRFile() async {
-    try {
-      final XFile? file = await _picker.pickVideo(
-        source: ImageSource.gallery,
-      );
-      if (file != null) {
-        setState(() {
-          _vrFile = file;
-        });
-        _showSuccess('VR file selected successfully!');
-      }
-    } catch (e) {
-      _showError('Error picking VR file: $e');
-      debugPrint('Error picking VR file: $e');
-    }
-  }
-
-  void _removeVRFile() {
-    setState(() {
-      _vrFile = null;
-    });
-  }
-
   void _handleNextStep() {
     if (_images.length < 3) {
       setState(() {
@@ -298,9 +234,6 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
 
     formData.images = _images;
     formData.video = _video;
-    formData.virtualTourUrl = _virtualTourController.text;
-    formData.arFile = _arFile;
-    formData.vrFile = _vrFile;
 
     provider.updateFormData(formData);
 
@@ -420,85 +353,67 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Text(
-                      'Property Media',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Upload high-quality photos and videos',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Upload Photos Section
-                    _buildUploadPhotosButton(),
-                    if (_imageError != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _imageError!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFFEF4444),
+                        const Text(
+                          'Property Media',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                            letterSpacing: -0.3,
+                          ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Upload high-quality photos and videos',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
-                    // Image Preview Grid
-                    if (_images.isNotEmpty) ...[
-                      _buildImageCountBadge(),
-                      const SizedBox(height: 12),
-                      _buildImageGrid(),
-                      const SizedBox(height: 24),
-                    ],
+                        // Upload Photos Section
+                        _buildUploadPhotosButton(),
+                        if (_imageError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _imageError!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
 
-                    // Upload Video Section
-                    _buildUploadVideoButton(),
-                    const SizedBox(height: 16),
+                        // Image Preview Grid
+                        if (_images.isNotEmpty) ...[
+                          _buildImageCountBadge(),
+                          const SizedBox(height: 12),
+                          _buildImageGrid(),
+                          const SizedBox(height: 24),
+                        ],
 
-                    // Video Preview
-                    if (_video != null) ...[
-                      _buildVideoPreview(),
-                      const SizedBox(height: 24),
-                    ],
+                        // Upload Video Section
+                        _buildUploadVideoButton(),
+                        const SizedBox(height: 16),
 
-                    // 360° Virtual Tour Section
-                    _buildVirtualTourSection(),
-                    const SizedBox(height: 24),
+                        // Video Preview
+                        if (_video != null) ...[
+                          _buildVideoPreview(),
+                          const SizedBox(height: 24),
+                        ],
 
-                    // AR Upload Section
-                    if (_arFile == null)
-                      _buildARUploadButton()
-                    else
-                      _buildARPreview(),
-                    const SizedBox(height: 24),
-
-                    // VR Upload Section
-                    if (_vrFile == null)
-                      _buildVRUploadButton()
-                    else
-                      _buildVRPreview(),
-                    const SizedBox(height: 24),
-
-                    // Tips Section
-                    _buildTipsSection(),
-                  ],
+                        // Tips Section
+                        _buildTipsSection(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
 
           // Bottom Navigation
           _buildNavigationButtons(),
@@ -933,331 +848,6 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
     );
   }
 
-  Widget _buildVirtualTourSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DottedBorder(
-          color: const Color(0xFF10B981),
-          strokeWidth: 2,
-          dashPattern: const [8, 4],
-          borderType: BorderType.RRect,
-          radius: const Radius.circular(16),
-          child: Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.language,
-                  size: 48,
-                  color: Color(0xFF10B981),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '360° Virtual Tour',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Upload or paste link',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _virtualTourController,
-          decoration: InputDecoration(
-            hintText: 'Paste 360° tour URL',
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 14,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildARUploadButton() {
-    return GestureDetector(
-      onTap: _pickARFile,
-      child: DottedBorder(
-        color: const Color(0xFF10B981),
-        strokeWidth: 2,
-        dashPattern: const [8, 4],
-        borderType: BorderType.RRect,
-        radius: const Radius.circular(16),
-        child: Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.view_in_ar_outlined,
-                size: 48,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Upload AR Content',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Augmented Reality files',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildARPreview() {
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFF10B981),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.view_in_ar,
-                size: 48,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'AR Content Uploaded',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _arFile!.name,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: -4,
-          right: -4,
-          child: GestureDetector(
-            onTap: _removeARFile,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVRUploadButton() {
-    return GestureDetector(
-      onTap: _pickVRFile,
-      child: DottedBorder(
-        color: const Color(0xFF10B981),
-        strokeWidth: 2,
-        dashPattern: const [8, 4],
-        borderType: BorderType.RRect,
-        radius: const Radius.circular(16),
-        child: Container(
-          height: 150,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.vrpano_outlined,
-                size: 48,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Upload VR Content',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Virtual Reality files',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVRPreview() {
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFF10B981),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.vrpano,
-                size: 48,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'VR Content Uploaded',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _vrFile!.name,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: -4,
-          right: -4,
-          child: GestureDetector(
-            onTap: _removeVRFile,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTipsSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1283,8 +873,6 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
           const SizedBox(height: 8),
           _buildTipItem('Upload clear, well-lit photos from multiple angles'),
           _buildTipItem('Video walkthrough helps buyers get a better feel'),
-          _buildTipItem('360° tours significantly increase engagement'),
-          _buildTipItem('AR/VR content provides immersive viewing experience'),
           _buildTipItem('First photo will be used as the cover image'),
         ],
       ),
@@ -1339,70 +927,70 @@ class _AddPropertyStep4ScreenState extends State<AddPropertyStep4Screen> {
               children: [
                 // Back Button
                 OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF10B981),
-                side: const BorderSide(
-                  color: Color(0xFF10B981),
-                  width: 2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-                minimumSize: const Size(0, 56),
-              ),
-              child: const Text(
-                'Back',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Next Button
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _images.length >= 3 ? _handleNextStep : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFFD1D5DB),
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF10B981),
+                    side: const BorderSide(
+                      color: Color(0xFF10B981),
+                      width: 2,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    elevation: 0,
-                    shadowColor: const Color(0xFF10B981).withOpacity(0.3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    minimumSize: const Size(0, 56),
                   ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Next Step',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
+                  child: const Text(
+                    'Back',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Next Button
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _images.length >= 3 ? _handleNextStep : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFD1D5DB),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                        shadowColor: const Color(0xFF10B981).withOpacity(0.3),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Next Step',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, size: 20),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 20),
-                  ],
+                  ),
                 ),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 }

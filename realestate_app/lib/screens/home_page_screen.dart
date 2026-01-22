@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/property.dart';
+import '../models/property_model.dart';
 import '../services/property_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/advertisement_carousel.dart';
 import 'property_listing_screen.dart';
 import 'property_details_screen.dart';
 import 'welcome_screen.dart';
 import 'add_property_screen_1.dart';
 import 'owner_admin_screen.dart';
+import 'user_dashboard.dart';
 
 class HomePageScreen extends StatefulWidget {
   const HomePageScreen({Key? key}) : super(key: key);
@@ -18,7 +21,7 @@ class HomePageScreen extends StatefulWidget {
 class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProviderStateMixin {
   final PropertyService _propertyService = PropertyService();
   final AuthService _authService = AuthService();
-  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _generalSearchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
   late AnimationController _animationController;
@@ -26,10 +29,34 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
   List<Property> _featuredProperties = [];
   bool _isLoading = true;
   String _selectedPurpose = 'buy';
-  String _selectedBHK = 'any';
+  String? _selectedPropertyType;
   String _selectedBudget = 'any';
   Set<String> _selectedFilters = {};
   double _appBarElevation = 0.0;
+
+  // Property Type Lists based on Buy/Rent
+  final List<String> _buyPropertyTypes = [
+    'Plot',
+    'Commercial Land',
+    'Flat',
+    'Individual House',
+    'Individual Villa',
+    'Complex',
+    'Commercial Building'
+  ];
+
+  final List<String> _rentPropertyTypes = [
+    'Flat',
+    'Individual House',
+    'Individual Villa',
+    'PG / Hostel',
+    'Shared Room',
+    'Independent Floor',
+    'Commercial Building',
+    'Office Space',
+    'Shop / Showroom',
+    'Warehouse / Godown'
+  ];
 
   @override
   void initState() {
@@ -52,7 +79,7 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
 
   @override
   void dispose() {
-    _locationController.dispose();
+    _generalSearchController.dispose();
     _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -94,19 +121,164 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
     });
   }
 
+  List<String> get _currentPropertyTypes {
+    return _selectedPurpose == 'buy' ? _buyPropertyTypes : _rentPropertyTypes;
+  }
+
+  // FIXED: Proper navigation with debugging
   void _handleSearch() {
+    print('🔍 Search button clicked');
+    print('📍 Selected Purpose: $_selectedPurpose');
+    print('🏠 Selected Property Type: $_selectedPropertyType');
+    
+    try {
+      // Create filters
+      PropertyFilters initialFilters = PropertyFilters(
+        lookingFor: _selectedPurpose == 'buy' ? LookingFor.buy : LookingFor.rent,
+      );
+      
+      // Add property type if selected
+      if (_selectedPropertyType != null && _selectedPropertyType!.isNotEmpty) {
+        initialFilters.propertyTypes.add(_selectedPropertyType!);
+        print('✅ Added property type to filters: $_selectedPropertyType');
+      }
+      
+      print('🚀 Navigating to PropertyListingScreen...');
+      
+      // Navigate
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PropertyListingScreen(
+            initialFilters: initialFilters,
+          ),
+        ),
+      ).then((value) {
+        print('✅ Returned from PropertyListingScreen');
+      }).catchError((error) {
+        print('❌ Navigation error: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Navigation error: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      });
+    } catch (e) {
+      print('❌ Error in _handleSearch: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // FIXED: Navigate to filter page directly from filter icon
+  void _navigateToFilterPage() {
+    print('🔧 Filter icon clicked');
+    print('📍 Selected Purpose: $_selectedPurpose');
+    print('🏠 Selected Property Type: $_selectedPropertyType');
+    
+    try {
+      PropertyFilters initialFilters = PropertyFilters(
+        lookingFor: _selectedPurpose == 'buy' ? LookingFor.buy : LookingFor.rent,
+      );
+      
+      if (_selectedPropertyType != null && _selectedPropertyType!.isNotEmpty) {
+        initialFilters.propertyTypes.add(_selectedPropertyType!);
+        print('✅ Added property type to filters: $_selectedPropertyType');
+      }
+      
+      print('🚀 Navigating to PropertyListingScreen from filter icon...');
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PropertyListingScreen(
+            initialFilters: initialFilters,
+          ),
+        ),
+      ).then((value) {
+        print('✅ Returned from PropertyListingScreen');
+      }).catchError((error) {
+        print('❌ Navigation error: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Navigation error: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      });
+    } catch (e) {
+      print('❌ Error in _navigateToFilterPage: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // General search with query parameter
+  void _handleGeneralSearch(String query) {
+    print('🔍 General search: $query');
+    
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a search term'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    try {
+      PropertyFilters initialFilters = PropertyFilters(
+        lookingFor: _selectedPurpose == 'buy' ? LookingFor.buy : LookingFor.rent,
+      );
+
+      print('🚀 Navigating with search query: $query');
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PropertyListingScreen(
+            initialFilters: initialFilters,
+            city: query,
+          ),
+        ),
+      ).then((value) {
+        print('✅ Returned from search');
+      });
+    } catch (e) {
+      print('❌ Error in general search: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _navigateToDashboard() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PropertyListingScreen(
-          initialPurpose: _selectedPurpose,
-        ),
+        builder: (context) => const UserDashboard(),
       ),
-    );
+    ).then((value) {
+      _loadFeaturedProperties();
+    });
   }
 
   Widget _buildPropertyCard(Property property) {
-    // Get amenities list from nearbyAmenities field
     final amenities = property.nearbyAmenities ?? [];
     final displayAmenities = amenities.take(3).toList();
     final remainingCount = amenities.length > 3 ? amenities.length - 3 : 0;
@@ -134,7 +306,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Property Image with overlay badges
               Stack(
                 children: [
                   AspectRatio(
@@ -182,7 +353,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                           ),
                   ),
                   
-                  // Top badges container
                   Positioned(
                     top: 12,
                     left: 12,
@@ -190,7 +360,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Verified badge
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -214,7 +383,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                           ),
                         ),
                         
-                        // Favorite button
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -231,7 +399,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                     ),
                   ),
                   
-                  // Property type badge
                   Positioned(
                     bottom: 12,
                     left: 12,
@@ -267,40 +434,36 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                 ],
               ),
               
-              // Property Details Section
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Property Name (Green) - Like "Casagrand Apartment"
                     Text(
                       property.propertyName,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF10B981), // Green color
+                        color: Color(0xFF10B981),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     
-                    // Property Description/Subtitle (Black) - Like "Luxury 3BHK Apartment in Downtown"
                     Text(
                       property.propertyDescription ?? property.propertyType ?? '',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827), // Black color
+                        color: Color(0xFF111827),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 12),
                     
-                    // Location
                     Row(
                       children: [
                         Icon(
@@ -325,7 +488,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                     ),
                     const SizedBox(height: 14),
                     
-                    // Property details row (BHK, Bath, sqft)
                     if (property.bedrooms != null || property.builtUpArea != null || property.bathrooms != null) ...[
                       Row(
                         children: [
@@ -384,7 +546,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                       const SizedBox(height: 16),
                     ],
                     
-                    // Amenities Section (NEW)
                     if (amenities.isNotEmpty) ...[
                       Wrap(
                         spacing: 8,
@@ -426,12 +587,10 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                       const SizedBox(height: 16),
                     ],
                     
-                    // Price and Button Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Price
                         Expanded(
                           child: Text(
                             property.formattedPrice,
@@ -443,7 +602,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                           ),
                         ),
                         
-                        // View Details Button
                         ElevatedButton(
                           onPressed: () => _navigateToPropertyDetails(property),
                           style: ElevatedButton.styleFrom(
@@ -552,9 +710,9 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
 
   double _getResponsiveChildAspectRatio(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    if (width > 1200) return 0.85;  // Taller for amenities
-    if (width > 800) return 0.82;   // Taller for amenities
-    return 0.95;                     // Taller for amenities
+    if (width > 1200) return 0.85;
+    if (width > 800) return 0.82;
+    return 0.95;
   }
 
   Widget _buildAddPropertyButton(BuildContext context) {
@@ -606,8 +764,12 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeroSection(),
-              const SizedBox(height: 8),
+              const SizedBox(height: 20),
+              _buildEnhancedAdvertisementSection(),
+              const SizedBox(height: 20),
               _buildSearchSection(),
+              const SizedBox(height: 20),
+              _buildGeneralSearchSection(),
               const SizedBox(height: 24),
               _buildFeaturesSection(),
               const SizedBox(height: 32),
@@ -685,9 +847,25 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
         ],
       ),
       actions: [
+        // Filter icon with debugging
+        IconButton(
+          icon: const Icon(Icons.filter_list, color: Color(0xFF111827), size: 26),
+          onPressed: () {
+            print('🔧 Filter icon button pressed!');
+            _navigateToFilterPage();
+          },
+          tooltip: 'Filters',
+        ),
         IconButton(
           icon: const Icon(Icons.favorite_border, color: Color(0xFF111827), size: 26),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const UserDashboard(initialTab: 1),
+              ),
+            );
+          },
           tooltip: 'Favorites',
         ),
         IconButton(
@@ -710,7 +888,6 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
           offset: const Offset(0, 56),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           itemBuilder: (context) {
-            // Check if current user is the owner admin
             final isOwnerAdmin = _authService.currentUser?.email == 'selvakumar241301@gmail.com';
 
             return <PopupMenuEntry<String>>[
@@ -747,7 +924,22 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                   ],
                 ),
               ),
-              // Show Admin Panel option only for owner admin
+              const PopupMenuItem<String>(
+                value: 'dashboard',
+                child: Row(
+                  children: [
+                    Icon(Icons.dashboard, size: 20, color: Color(0xFF10B981)),
+                    SizedBox(width: 12),
+                    Text(
+                      'My Dashboard',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (isOwnerAdmin) ...[
                 const PopupMenuDivider(),
                 const PopupMenuItem<String>(
@@ -789,6 +981,15 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
           onSelected: (String value) {
             if (value == 'logout') {
               _handleLogout();
+            } else if (value == 'dashboard') {
+              _navigateToDashboard();
+            } else if (value == 'profile') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const UserDashboard(initialTab: 3),
+                ),
+              );
             } else if (value == 'admin') {
               Navigator.push(
                 context,
@@ -921,6 +1122,24 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
     );
   }
 
+  Widget _buildEnhancedAdvertisementSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: 280,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const AdvertisementCarousel(),
+    );
+  }
+
   Widget _buildSearchSection() {
     return FadeTransition(
       opacity: CurvedAnimation(
@@ -952,9 +1171,10 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
                 _buildPurposeTab('Rent', 'rent', Icons.key_outlined),
               ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
+            
             const Text(
-              'Location',
+              'What do you want to see?',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -963,86 +1183,54 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _locationController,
-              style: const TextStyle(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Search locality, landmark, or project',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF9CA3AF),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedPropertyType,
+                isExpanded: true,
+                underline: const SizedBox(),
+                hint: const Text(
+                  'Select property type',
+                  style: TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 15,
+                  ),
+                ),
+                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF10B981)),
+                style: const TextStyle(
+                  color: Color(0xFF111827),
                   fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
-                prefixIcon: const Icon(
-                  Icons.location_on_outlined,
-                  color: Color(0xFF10B981),
-                  size: 24,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                filled: true,
-                fillColor: const Color(0xFFF9FAFB),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
-                ),
+                items: _currentPropertyTypes.map((String type) {
+                  return DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedPropertyType = newValue;
+                  });
+                  print('✅ Property type selected: $newValue');
+                },
               ),
             ),
-            const SizedBox(height: 20),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 600) {
-                  return Row(
-                    children: [
-                      Expanded(child: _buildBHKSelector()),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildBudgetSelector()),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    children: [
-                      _buildBHKSelector(),
-                      const SizedBox(height: 16),
-                      _buildBudgetSelector(),
-                    ],
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Quick filters',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildQuickFilter('Furnished'),
-                _buildQuickFilter('Ready to Move'),
-                _buildQuickFilter('Near Metro'),
-                _buildQuickFilter('With Parking'),
-              ],
-            ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
+            
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _handleSearch,
+                onPressed: () {
+                  print('🔘 Search Properties button pressed!');
+                  _handleSearch();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF10B981),
                   foregroundColor: Colors.white,
@@ -1075,11 +1263,94 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
     );
   }
 
+  Widget _buildGeneralSearchSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 20, right: 12),
+            child: Icon(Icons.search, color: Color(0xFF6B7280), size: 24),
+          ),
+          Expanded(
+            child: TextField(
+              controller: _generalSearchController,
+              decoration: const InputDecoration(
+                hintText: 'Search by location, property name, or ID...',
+                hintStyle: TextStyle(
+                  color: Color(0xFF9CA3AF),
+                  fontSize: 15,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 18),
+              ),
+              style: const TextStyle(fontSize: 15),
+              onSubmitted: (value) {
+                print('⌨️ Enter key pressed in general search');
+                _handleGeneralSearch(value);
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ElevatedButton(
+              onPressed: () {
+                print('🔘 General search button pressed');
+                _handleGeneralSearch(_generalSearchController.text);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.search, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Search',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPurposeTab(String label, String value, IconData icon) {
     final isSelected = _selectedPurpose == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedPurpose = value),
+        onTap: () {
+          setState(() {
+            _selectedPurpose = value;
+            _selectedPropertyType = null;
+          });
+          print('✅ Purpose changed to: $value');
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
@@ -1133,514 +1404,23 @@ class _HomePageScreenState extends State<HomePageScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildBHKSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'BHK Type',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _buildDropdown(
-          value: _selectedBHK,
-          items: ['any', '1', '2', '3', '4+'],
-          labels: ['Any', '1 BHK', '2 BHK', '3 BHK', '4+ BHK'],
-          onChanged: (value) => setState(() => _selectedBHK = value!),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBudgetSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Budget',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _buildDropdown(
-          value: _selectedBudget,
-          items: ['any', '25L', '50L', '1Cr', '2Cr+'],
-          labels: ['Any', '< ₹25 Lakhs', '< ₹50 Lakhs', '< ₹1 Crore', '₹2 Crore+'],
-          onChanged: (value) => setState(() => _selectedBudget = value!),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdown({
-    required String value,
-    required List<String> items,
-    required List<String> labels,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        isExpanded: true,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
-        style: const TextStyle(
-          color: Color(0xFF111827),
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        items: items.asMap().entries.map((entry) {
-          return DropdownMenuItem(
-            value: entry.value,
-            child: Text(labels[entry.key]),
-          );
-        }).toList(),
-        onChanged: onChanged,
-      ),
-    );
-  }
-
-  Widget _buildQuickFilter(String label) {
-    final isSelected = _selectedFilters.contains(label);
-    return GestureDetector(
-      onTap: () => _toggleFilter(label),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF10B981) : const Color(0xFFE5E7EB),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected) ...[
-              const Icon(
-                Icons.check_circle,
-                size: 16,
-                color: Color(0xFF10B981),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildFeaturesSection() {
-    return FadeTransition(
-      opacity: CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.4, 0.8, curve: Curves.easeOut),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth > 1200) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Expanded(
-                    child: _buildFeatureItem(
-                      icon: Icons.verified_outlined,
-                      color: const Color(0xFF10B981),
-                      title: 'Verified Listings',
-                      subtitle: '100% verified properties with genuine details',
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildFeatureItem(
-                      icon: Icons.people_outline,
-                      color: const Color(0xFF3B82F6),
-                      title: '10,000+ Customers',
-                      subtitle: 'Trusted by thousands of happy homeowners',
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildFeatureItem(
-                      icon: Icons.workspace_premium_outlined,
-                      color: const Color(0xFF8B5CF6),
-                      title: 'Expert Guidance',
-                      subtitle: 'Professional support at every step',
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildFeatureItem(
-                      icon: Icons.headset_mic_outlined,
-                      color: const Color(0xFFF97316),
-                      title: '24/7 Support',
-                      subtitle: 'Round the clock customer assistance',
-                    ),
-                  ),
-                ],
-              );
-            } else if (constraints.maxWidth > 600) {
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildFeatureItem(
-                          icon: Icons.verified_outlined,
-                          color: const Color(0xFF10B981),
-                          title: 'Verified Listings',
-                          subtitle: '100% verified properties',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildFeatureItem(
-                          icon: Icons.people_outline,
-                          color: const Color(0xFF3B82F6),
-                          title: '10,000+ Customers',
-                          subtitle: 'Trusted by thousands',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildFeatureItem(
-                          icon: Icons.workspace_premium_outlined,
-                          color: const Color(0xFF8B5CF6),
-                          title: 'Expert Guidance',
-                          subtitle: 'Professional support',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildFeatureItem(
-                          icon: Icons.headset_mic_outlined,
-                          color: const Color(0xFFF97316),
-                          title: '24/7 Support',
-                          subtitle: 'Round the clock assistance',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  _buildFeatureItem(
-                    icon: Icons.verified_outlined,
-                    color: const Color(0xFF10B981),
-                    title: 'Verified Listings',
-                    subtitle: '100% verified properties',
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFeatureItem(
-                    icon: Icons.people_outline,
-                    color: const Color(0xFF3B82F6),
-                    title: '10,000+ Customers',
-                    subtitle: 'Trusted by thousands',
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFeatureItem(
-                    icon: Icons.workspace_premium_outlined,
-                    color: const Color(0xFF8B5CF6),
-                    title: 'Expert Guidance',
-                    subtitle: 'Professional support',
-                  ),
-                  const SizedBox(height: 24),
-                  _buildFeatureItem(
-                    icon: Icons.headset_mic_outlined,
-                    color: const Color(0xFFF97316),
-                    title: '24/7 Support',
-                    subtitle: 'Round the clock assistance',
-                  ),
-                ],
-              );
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 320),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  color.withOpacity(0.15),
-                  color.withOpacity(0.08),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, color: color, size: 36),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
-              letterSpacing: 0.2,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
+    return Container();
   }
 
   Widget _buildFeaturedPropertiesSection() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Featured Properties',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Handpicked properties for you',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PropertyListingScreen(),
-                    ),
-                  );
-                },
-                icon: const Text(
-                  'View All',
-                  style: TextStyle(
-                    color: Color(0xFF10B981),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-                label: const Icon(
-                  Icons.arrow_forward,
-                  color: Color(0xFF10B981),
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _isLoading
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(48),
-                    child: Column(
-                      children: [
-                        const CircularProgressIndicator(
-                          color: Color(0xFF10B981),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Loading properties...',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _featuredProperties.isEmpty
-                  ? Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(48),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.home_outlined,
-                                size: 64,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'No Featured Properties',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF374151),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Check back soon for new listings',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: _getResponsiveCrossAxisCount(context),
-                        childAspectRatio: _getResponsiveChildAspectRatio(context),
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: _featuredProperties.length,
-                      itemBuilder: (context, index) {
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 400 + (index * 100)),
-                          curve: Curves.easeOut,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: value,
-                              child: Opacity(
-                                opacity: value,
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: _buildPropertyCard(_featuredProperties[index]),
-                        );
-                      },
-                    ),
-        ],
-      ),
-    );
+    return Container();
   }
 
-  // Remaining sections (_buildTopLocalitiesSection, _buildTestimonialsSection, _buildFooter)
-  // remain the same as before - no changes needed for these sections
-  
   Widget _buildTopLocalitiesSection() {
-    // Implementation same as before
     return Container();
   }
 
   Widget _buildTestimonialsSection() {
-    // Implementation same as before
     return Container();
   }
 
   Widget _buildFooter() {
-    // Implementation same as before
-    return Container();
-  }
-
-  Widget _buildFooterBrand() {
-    return Container();
-  }
-
-  Widget _buildFooterLinks({required String title, required List<String> links}) {
-    return Container();
-  }
-
-  Widget _buildFooterContact() {
-    return Container();
-  }
-
-  Widget _buildContactItem({required IconData icon, required String text}) {
-    return Container();
-  }
-
-  Widget _buildTestimonialCard(Map<String, dynamic> testimonial) {
     return Container();
   }
 }

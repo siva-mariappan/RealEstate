@@ -57,15 +57,12 @@ class PropertyFormData {
   String? leaseType;
   bool? registrationRequired;
 
-  // Tenant Preferences (✅ NEW FIELD)
+  // Tenant Preferences
   List<String>? tenantPreferences;
 
-  // Step 4: Media
+  // Step 4: Media (Removed virtualTourUrl, arFile, vrFile)
   List<XFile>? images;
   XFile? video;
-  String? virtualTourUrl;
-  XFile? arFile;
-  XFile? vrFile;
 
   // Step 5: Contact & Agent
   String? contactName;
@@ -89,8 +86,6 @@ class PropertyFormData {
     String? coverImageUrl,
     List<String>? imageUrls,
     String? videoUrl,
-    String? arContentUrl,
-    String? vrContentUrl,
   }) {
     return {
       'user_id': userId,
@@ -140,13 +135,11 @@ class PropertyFormData {
       'rent_escalation_percent': rentEscalationPercent != null ? double.tryParse(rentEscalationPercent!) : null,
       'lease_type': leaseType,
       'registration_required': registrationRequired,
-      'tenant_preferences': tenantPreferences, // ✅ ADDED THIS LINE
+      'tenant_preferences': tenantPreferences,
       'cover_image_url': coverImageUrl,
       'image_urls': imageUrls,
       'video_url': videoUrl,
-      'virtual_tour_url': virtualTourUrl,
-      'ar_content_url': arContentUrl,
-      'vr_content_url': vrContentUrl,
+      // Removed: 'virtual_tour_url', 'ar_content_url', 'vr_content_url'
       'contact_name': contactName,
       'contact_mobile': contactMobile,
       'contact_email': contactEmail,

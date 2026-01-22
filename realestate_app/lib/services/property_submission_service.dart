@@ -37,29 +37,13 @@ class PropertySubmissionService {
         videoUrl = await _uploadVideo(formData.video!, userId);
       }
 
-      // Step 3: Upload AR content (if exists)
-      print('🥽 Uploading AR content...');
-      String? arContentUrl;
-      if (formData.arFile != null) {
-        arContentUrl = await _uploadARVRContent(formData.arFile!, userId, 'ar');
-      }
-
-      // Step 4: Upload VR content (if exists)
-      print('🌐 Uploading VR content...');
-      String? vrContentUrl;
-      if (formData.vrFile != null) {
-        vrContentUrl = await _uploadARVRContent(formData.vrFile!, userId, 'vr');
-      }
-
-      // Step 5: Insert property data into database
+      // Step 3: Insert property data into database
       print('💾 Saving property to database...');
       final propertyData = formData.toJson(
         userId: userId,
         coverImageUrl: coverImageUrl,
         imageUrls: imageUrls,
         videoUrl: videoUrl,
-        arContentUrl: arContentUrl,
-        vrContentUrl: vrContentUrl,
       );
 
       // Add subscription and verification details
@@ -155,29 +139,6 @@ class PropertySubmissionService {
     }
   }
 
-  // Upload AR/VR content to Supabase Storage
-  Future<String?> _uploadARVRContent(XFile file, String userId, String type) async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = '$userId/property-$type-$timestamp.${file.name.split('.').last}';
-
-      final bytes = await file.readAsBytes();
-      await _supabase.storage
-          .from('property-ar-vr')
-          .uploadBinary(fileName, bytes);
-
-      final url = _supabase.storage
-          .from('property-ar-vr')
-          .getPublicUrl(fileName);
-
-      print('✓ $type content uploaded successfully');
-      return url;
-    } catch (e) {
-      print('✗ Error uploading $type content: $e');
-      return null; // AR/VR is optional
-    }
-  }
-
   // Update existing property
   Future<void> updateProperty(
     String propertyId,
@@ -204,24 +165,12 @@ class PropertySubmissionService {
         videoUrl = await _uploadVideo(formData.video!, userId);
       }
 
-      String? arContentUrl;
-      if (formData.arFile != null) {
-        arContentUrl = await _uploadARVRContent(formData.arFile!, userId, 'ar');
-      }
-
-      String? vrContentUrl;
-      if (formData.vrFile != null) {
-        vrContentUrl = await _uploadARVRContent(formData.vrFile!, userId, 'vr');
-      }
-
       // Update property
       final propertyData = formData.toJson(
         userId: userId,
         coverImageUrl: coverImageUrl,
         imageUrls: imageUrls,
         videoUrl: videoUrl,
-        arContentUrl: arContentUrl,
-        vrContentUrl: vrContentUrl,
       );
 
       // Update subscription and verification if provided
@@ -340,6 +289,188 @@ class PropertySubmissionService {
       print('✅ Subscription plan updated to $newPlan');
     } catch (e) {
       print('❌ Error updating subscription plan: $e');
+      rethrow;
+    }
+  }
+
+  // Get user's properties
+  Future<List<Map<String, dynamic>>> getUserProperties() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await _supabase
+          .from('properties')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching user properties: $e');
+      return [];
+    }
+  }
+
+  // Get property by ID
+  Future<Map<String, dynamic>?> getPropertyById(String propertyId) async {
+    try {
+      final response = await _supabase
+          .from('properties')
+          .select()
+          .eq('id', propertyId)
+          .single();
+
+      return response;
+    } catch (e) {
+      print('❌ Error fetching property: $e');
+      return null;
+    }
+  }
+
+  // Search properties
+  Future<List<Map<String, dynamic>>> searchProperties({
+    String? propertyFor,
+    String? propertyType,
+    String? city,
+    String? locality,
+    double? minPrice,
+    double? maxPrice,
+    String? bedrooms,
+    String? bathrooms,
+  }) async {
+    try {
+      var query = _supabase.from('properties').select();
+
+      if (propertyFor != null) {
+        query = query.eq('property_for', propertyFor);
+      }
+
+      if (propertyType != null) {
+        query = query.or('property_type_sell.eq.$propertyType,property_type_rent.eq.$propertyType');
+      }
+
+      if (city != null) {
+        query = query.eq('city', city);
+      }
+
+      if (locality != null) {
+        query = query.eq('locality', locality);
+      }
+
+      if (minPrice != null) {
+        query = query.gte('price', minPrice);
+      }
+
+      if (maxPrice != null) {
+        query = query.lte('price', maxPrice);
+      }
+
+      if (bedrooms != null) {
+        query = query.eq('bedrooms', bedrooms);
+      }
+
+      if (bathrooms != null) {
+        query = query.eq('bathrooms', bathrooms);
+      }
+
+      final response = await query
+          .eq('status', 'active')
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error searching properties: $e');
+      return [];
+    }
+  }
+
+  // Get all active properties
+  Future<List<Map<String, dynamic>>> getAllProperties() async {
+    try {
+      final response = await _supabase
+          .from('properties')
+          .select()
+          .eq('status', 'active')
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('❌ Error fetching properties: $e');
+      return [];
+    }
+  }
+
+  // Mark property as sold/rented
+  Future<void> markPropertyAsSold(String propertyId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _supabase
+          .from('properties')
+          .update({
+            'status': 'sold',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', propertyId)
+          .eq('user_id', userId);
+
+      print('✅ Property marked as sold!');
+    } catch (e) {
+      print('❌ Error marking property as sold: $e');
+      rethrow;
+    }
+  }
+
+  // Mark property as inactive
+  Future<void> markPropertyAsInactive(String propertyId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _supabase
+          .from('properties')
+          .update({
+            'status': 'inactive',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', propertyId)
+          .eq('user_id', userId);
+
+      print('✅ Property marked as inactive!');
+    } catch (e) {
+      print('❌ Error marking property as inactive: $e');
+      rethrow;
+    }
+  }
+
+  // Reactivate property
+  Future<void> reactivateProperty(String propertyId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _supabase
+          .from('properties')
+          .update({
+            'status': 'active',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', propertyId)
+          .eq('user_id', userId);
+
+      print('✅ Property reactivated!');
+    } catch (e) {
+      print('❌ Error reactivating property: $e');
       rethrow;
     }
   }

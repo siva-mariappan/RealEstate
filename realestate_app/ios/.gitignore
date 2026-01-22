@@ -32,3 +32,19 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# Flutter / Dart
+.dart_tool/
+build/
+
+# Chrome auth / generated files
+chrome-device/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
