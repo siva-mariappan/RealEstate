@@ -29,9 +29,22 @@ enum FacingDirection {
   const FacingDirection(this.displayName);
 }
 
+// NEW: Measurement Unit Enum
+enum MeasurementUnit {
+  acres('Acres'),
+  cents('Cents'),
+  ares('Ares'),
+  hectare('Hectare'),
+  squareFeet('Square Feet'),
+  squareMeter('Square Meter');
+
+  final String displayName;
+  const MeasurementUnit(this.displayName);
+}
+
 // PROPERTY TYPES FOR SELL
 enum SellPropertyType {
-  plot('Plot'),
+  plot('Plot/Land'),
   commercialLand('Commercial Land'),
   flat('Flat'),
   house('Individual House'),
@@ -62,31 +75,32 @@ enum RentPropertyType {
 
 // FIELD CONFIG MODEL
 class Step1Config {
-  final bool landExtent;
   final bool builtUpArea;
   final bool bedrooms;
   final bool bathrooms;
   final bool floorNo;
   final bool totalFloors;
   final bool furnishing;
+  final bool numberOfBeds; // NEW: For PG/Hostel and Shared Room
+  final bool peoplePerRoom; // NEW: For PG/Hostel and Shared Room
 
   const Step1Config({
-    this.landExtent = false,
     this.builtUpArea = false,
     this.bedrooms = false,
     this.bathrooms = false,
     this.floorNo = false,
     this.totalFloors = false,
     this.furnishing = false,
+    this.numberOfBeds = false,
+    this.peoplePerRoom = false,
   });
 }
 
 // FIELD CONFIG MAP FOR SELL
 final Map<SellPropertyType, Step1Config> sellFieldConfig = {
-  SellPropertyType.plot: const Step1Config(landExtent: true),
-  SellPropertyType.commercialLand: const Step1Config(landExtent: true),
+  SellPropertyType.plot: const Step1Config(),
+  SellPropertyType.commercialLand: const Step1Config(),
   SellPropertyType.flat: const Step1Config(
-    landExtent: true,
     builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
@@ -95,7 +109,6 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
     furnishing: true,
   ),
   SellPropertyType.house: const Step1Config(
-    landExtent: true,
     builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
@@ -103,19 +116,16 @@ final Map<SellPropertyType, Step1Config> sellFieldConfig = {
     furnishing: true,
   ),
   SellPropertyType.villa: const Step1Config(
-    landExtent: true,
     builtUpArea: true,
     bedrooms: true,
     bathrooms: true,
     furnishing: true,
   ),
   SellPropertyType.complex: const Step1Config(
-    landExtent: true,
     builtUpArea: true,
     totalFloors: true,
   ),
   SellPropertyType.commercialBuilding: const Step1Config(
-    landExtent: true,
     builtUpArea: true,
     totalFloors: true,
   ),
@@ -141,14 +151,19 @@ final Map<RentPropertyType, Step1Config> rentFieldConfig = {
     bathrooms: true,
     furnishing: true,
   ),
+  // NEW: Special config for PG/Hostel
   RentPropertyType.pgHostel: const Step1Config(
-    bedrooms: true,
     bathrooms: true,
     furnishing: true,
+    numberOfBeds: true,
+    peoplePerRoom: true,
   ),
+  // NEW: Special config for Shared Room
   RentPropertyType.sharedRoom: const Step1Config(
-    bedrooms: true,
+    bathrooms: true,
     furnishing: true,
+    numberOfBeds: true,
+    peoplePerRoom: true,
   ),
   RentPropertyType.independentFloor: const Step1Config(
     floorNo: true,
@@ -164,8 +179,10 @@ final Map<RentPropertyType, Step1Config> rentFieldConfig = {
 };
 
 // CONSTANTS
-final List<String> bedroomOptions = ['RK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Custom'];
+final List<String> bedroomOptions = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Custom'];
 final List<String> bathroomOptions = ['1', '2', '3', '4', 'Custom'];
+final List<String> numberOfBedsOptions = ['1', '2', '3', '4', '5', '6', 'Custom']; // NEW
+final List<String> peoplePerRoomOptions = ['1', '2', '3', '4', '5', '6', 'Custom']; // NEW
 
 final List<String> furnishingItems = [
   'Beds',
@@ -229,20 +246,31 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   FurnishingStatus? _furnishing;
   String? _selectedBedroom;
   String? _selectedBathroom;
+  String? _selectedNumberOfBeds; // NEW
+  String? _selectedPeoplePerRoom; // NEW
+  
+  MeasurementUnit? _selectedMeasurementUnit;
 
   // Controllers
   final _propertyNameController = TextEditingController();
-  final _propertyDescriptionController = TextEditingController(); // NEW: Description controller
-  final _landLengthController = TextEditingController();
-  final _landBreadthController = TextEditingController();
+  final _propertyDescriptionController = TextEditingController();
+  final _measurementValueController = TextEditingController();
   final _builtUpAreaController = TextEditingController();
   final _floorNoController = TextEditingController();
   final _totalFloorsController = TextEditingController();
   final _totalBlocksController = TextEditingController();
   final _customBedroomController = TextEditingController();
   final _customBathroomController = TextEditingController();
+  final _customNumberOfBedsController = TextEditingController(); // NEW
+  final _customPeoplePerRoomController = TextEditingController(); // NEW
+  
+  // Boundary Controllers
+  final _boundaryNorthController = TextEditingController();
+  final _boundarySouthController = TextEditingController();
+  final _boundaryEastController = TextEditingController();
+  final _boundaryWestController = TextEditingController();
 
-  // Selected Items (only selection, no controllers needed for furnishing & inside amenities)
+  // Selected Items
   final Set<String> _selectedFurnishings = {};
   final Set<String> _selectedInsideAmenities = {};
   final Map<String, TextEditingController> _amenityControllers = {};
@@ -253,7 +281,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   @override
   void initState() {
     super.initState();
-    // Load existing form data from provider
     _loadExistingData();
   }
 
@@ -261,11 +288,9 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     final provider = Provider.of<PropertyFormProvider>(context, listen: false);
     final formData = provider.formData;
 
-    // Load basic details
     if (formData.propertyName != null) {
       _propertyNameController.text = formData.propertyName!;
     }
-    // NEW: Load property description
     if (formData.propertyDescription != null) {
       _propertyDescriptionController.text = formData.propertyDescription!;
     }
@@ -278,14 +303,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     if (formData.rentPropertyType != null) {
       _selectedRentType = formData.rentPropertyType;
     }
-    if (formData.landExtent != null) {
-      // Try to parse L x B format
-      final parts = formData.landExtent!.split('x');
-      if (parts.length == 2) {
-        _landLengthController.text = parts[0].trim();
-        _landBreadthController.text = parts[1].trim();
-      }
-    }
     if (formData.builtUpArea != null) {
       _builtUpAreaController.text = formData.builtUpArea!;
     }
@@ -294,6 +311,13 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     }
     if (formData.bathrooms != null) {
       _selectedBathroom = formData.bathrooms;
+    }
+    // NEW: Load beds and people data
+    if (formData.numberOfBeds != null) {
+      _selectedNumberOfBeds = formData.numberOfBeds;
+    }
+    if (formData.peoplePerRoom != null) {
+      _selectedPeoplePerRoom = formData.peoplePerRoom;
     }
     if (formData.floorNo != null) {
       _floorNoController.text = formData.floorNo!;
@@ -320,17 +344,21 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   @override
   void dispose() {
     _propertyNameController.dispose();
-    _propertyDescriptionController.dispose(); // NEW: Dispose description controller
-    _landLengthController.dispose();
-    _landBreadthController.dispose();
+    _propertyDescriptionController.dispose();
+    _measurementValueController.dispose();
     _builtUpAreaController.dispose();
     _floorNoController.dispose();
     _totalFloorsController.dispose();
     _totalBlocksController.dispose();
     _customBedroomController.dispose();
     _customBathroomController.dispose();
+    _customNumberOfBedsController.dispose(); // NEW
+    _customPeoplePerRoomController.dispose(); // NEW
+    _boundaryNorthController.dispose();
+    _boundarySouthController.dispose();
+    _boundaryEastController.dispose();
+    _boundaryWestController.dispose();
 
-    // Dispose nearby amenity controllers
     for (var controller in _amenityControllers.values) {
       controller.dispose();
     }
@@ -442,16 +470,14 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate land extent (L x B) for sell properties
-    if (_propertyFor == PropertyFor.sell && config.landExtent) {
-      if (_landLengthController.text.trim().isEmpty) {
-        _showError('Please enter land length');
-        return;
-      }
-      if (_landBreadthController.text.trim().isEmpty) {
-        _showError('Please enter land breadth');
-        return;
-      }
+    // Validate measurement
+    if (_selectedMeasurementUnit == null) {
+      _showError('Please select a measurement unit');
+      return;
+    }
+    if (_measurementValueController.text.trim().isEmpty) {
+      _showError('Please enter measurement value');
+      return;
     }
 
     // Validate built-up area
@@ -460,7 +486,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate facing direction (mandatory except for plot)
+    // Validate facing direction
     if (_shouldShowFacingDirection() && _facing == null) {
       _showError('Please select facing direction');
       return;
@@ -486,6 +512,26 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
+    // NEW: Validate number of beds
+    if (config.numberOfBeds && _selectedNumberOfBeds == null) {
+      _showError('Please select number of beds in a room');
+      return;
+    }
+    if (_selectedNumberOfBeds == 'Custom' && _customNumberOfBedsController.text.trim().isEmpty) {
+      _showError('Please enter custom number of beds');
+      return;
+    }
+
+    // NEW: Validate people per room
+    if (config.peoplePerRoom && _selectedPeoplePerRoom == null) {
+      _showError('Please select how many people allowed per room');
+      return;
+    }
+    if (_selectedPeoplePerRoom == 'Custom' && _customPeoplePerRoomController.text.trim().isEmpty) {
+      _showError('Please enter custom people per room count');
+      return;
+    }
+
     // Validate floor info
     if (config.floorNo && _floorNoController.text.trim().isEmpty) {
       _showError('Please enter floor number');
@@ -496,7 +542,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate total blocks for complex
+    // Validate total blocks
     if (_shouldShowTotalBlocks() && _totalBlocksController.text.trim().isEmpty) {
       _showError('Please enter total number of blocks');
       return;
@@ -508,7 +554,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       return;
     }
 
-    // Validate nearby amenities names are mandatory when selected
+    // Validate nearby amenities
     for (var entry in _amenityControllers.entries) {
       if (entry.value.text.trim().isEmpty) {
         _showError('Please enter name for ${entry.key}');
@@ -520,18 +566,31 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     final provider = Provider.of<PropertyFormProvider>(context, listen: false);
     final formData = provider.formData;
 
-    // Update form data with Step 1 values
     formData.propertyName = _propertyNameController.text.trim();
-    formData.propertyDescription = _propertyDescriptionController.text.trim(); // NEW: Save description
+    formData.propertyDescription = _propertyDescriptionController.text.trim();
     formData.propertyFor = _propertyFor;
     formData.sellPropertyType = _selectedSellType;
     formData.rentPropertyType = _selectedRentType;
     
-    // Save land extent as "L x B" format for sell properties
-    if (_propertyFor == PropertyFor.sell && config.landExtent) {
-      formData.landExtent = '${_landLengthController.text.trim()} x ${_landBreadthController.text.trim()}';
-    } else {
-      formData.landExtent = null;
+    // Save measurement data
+    if (_selectedMeasurementUnit != null && _measurementValueController.text.trim().isNotEmpty) {
+      formData.landExtent = '${_measurementValueController.text.trim()} ${_selectedMeasurementUnit!.displayName}';
+      formData.measurementValue = _measurementValueController.text.trim();
+      formData.measurementUnit = _selectedMeasurementUnit!.displayName;
+    }
+
+    // Save boundary data
+    if (_boundaryNorthController.text.trim().isNotEmpty) {
+      formData.boundaryNorth = _boundaryNorthController.text.trim();
+    }
+    if (_boundarySouthController.text.trim().isNotEmpty) {
+      formData.boundarySouth = _boundarySouthController.text.trim();
+    }
+    if (_boundaryEastController.text.trim().isNotEmpty) {
+      formData.boundaryEast = _boundaryEastController.text.trim();
+    }
+    if (_boundaryWestController.text.trim().isNotEmpty) {
+      formData.boundaryWest = _boundaryWestController.text.trim();
     }
     
     formData.builtUpArea = _builtUpAreaController.text.trim().isNotEmpty 
@@ -539,6 +598,11 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
         : null;
     formData.bedrooms = _selectedBedroom;
     formData.bathrooms = _selectedBathroom;
+    
+    // NEW: Save beds and people data
+    formData.numberOfBeds = _selectedNumberOfBeds;
+    formData.peoplePerRoom = _selectedPeoplePerRoom;
+    
     formData.floorNo = _floorNoController.text.trim().isNotEmpty 
         ? _floorNoController.text.trim() 
         : null;
@@ -548,15 +612,15 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     formData.facingDirection = _facing;
     formData.furnishingStatus = _furnishing;
 
-    // Collect selected furnishing items (selection only, no details)
+    // Collect selected furnishing items
     final selectedFurnishings = _selectedFurnishings.toList();
     formData.furnishingItems = selectedFurnishings.isNotEmpty ? selectedFurnishings : null;
 
-    // Collect selected inside amenities (selection only, no details)
+    // Collect selected inside amenities
     final selectedInsideAmenities = _selectedInsideAmenities.toList();
-    // TODO: Add formData.insideAmenities field when PropertyFormData model is updated
+    formData.insideAmenities = selectedInsideAmenities.isNotEmpty ? selectedInsideAmenities : null;
 
-    // Collect selected nearby amenities (with names)
+    // Collect selected nearby amenities
     final selectedAmenities = <String>[];
     for (var item in nearbyAmenities) {
       if (_amenityControllers.containsKey(item)) {
@@ -568,7 +632,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
 
     provider.updateFormData(formData);
 
-    // Navigate to Step 2 with selected property type
+    // Navigate to Step 2
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -584,7 +648,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   void _handlePropertyForChange(PropertyFor newValue) {
     setState(() {
       _propertyFor = newValue;
-      // Reset property type and clear all selections
       if (newValue == PropertyFor.sell) {
         _selectedSellType = null;
         _selectedRentType = null;
@@ -599,14 +662,15 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   void _resetForm() {
     _selectedBedroom = null;
     _selectedBathroom = null;
+    _selectedNumberOfBeds = null; // NEW
+    _selectedPeoplePerRoom = null; // NEW
     _facing = null;
     _furnishing = null;
+    _selectedMeasurementUnit = null;
 
-    // Clear selections
     _selectedFurnishings.clear();
     _selectedInsideAmenities.clear();
 
-    // Clear and dispose nearby amenity controllers
     for (var controller in _amenityControllers.values) {
       controller.dispose();
     }
@@ -617,15 +681,20 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     _customAmenities.clear();
 
     _propertyNameController.clear();
-    _propertyDescriptionController.clear(); // NEW: Clear description
-    _landLengthController.clear();
-    _landBreadthController.clear();
+    _propertyDescriptionController.clear();
+    _measurementValueController.clear();
     _builtUpAreaController.clear();
     _floorNoController.clear();
     _totalFloorsController.clear();
     _totalBlocksController.clear();
     _customBedroomController.clear();
     _customBathroomController.clear();
+    _customNumberOfBedsController.clear(); // NEW
+    _customPeoplePerRoomController.clear(); // NEW
+    _boundaryNorthController.clear();
+    _boundarySouthController.clear();
+    _boundaryEastController.clear();
+    _boundaryWestController.clear();
   }
 
   @override
@@ -674,10 +743,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
       ),
       body: Column(
         children: [
-          // Progress Indicator
           _buildProgressIndicator(),
-
-          // Scrollable Form
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -720,25 +786,20 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Property For Section
                         _buildPropertyForSection(),
                         const SizedBox(height: 24),
 
-                        // Property Type Dropdown
                         _buildPropertyTypeDropdown(),
                         const SizedBox(height: 24),
 
-                        // Property Name Field (after property type)
                         if (_selectedSellType != null || _selectedRentType != null) ...[
                           _buildPropertyNameField(),
                           const SizedBox(height: 24),
 
-                          // NEW: Property Description Field
                           _buildPropertyDescriptionField(),
                           const SizedBox(height: 24),
                         ],
 
-                        // Total Blocks for Complex
                         if (_shouldShowTotalBlocks()) ...[
                           _buildTextField(
                             label: 'Total Number of Blocks',
@@ -748,13 +809,19 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Land Extent (L x B) for SELL properties only
-                        if (_propertyFor == PropertyFor.sell && config.landExtent) ...[
-                          _buildLandExtentSection(),
+                        // Measurement Section
+                        if (_selectedSellType != null || _selectedRentType != null) ...[
+                          _buildMeasurementSection(),
                           const SizedBox(height: 20),
                         ],
 
-                        // Built-up Area
+                        // Boundaries Section
+                        if (_propertyFor == PropertyFor.sell && 
+                            (_selectedSellType != null)) ...[
+                          _buildBoundariesSection(),
+                          const SizedBox(height: 20),
+                        ],
+
                         if (config.builtUpArea) ...[
                           _buildTextField(
                             label: 'Built-up Area (sqft)',
@@ -764,7 +831,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Bedrooms
                         if (config.bedrooms) ...[
                           _buildSelectionSection(
                             title: 'Bedrooms',
@@ -777,7 +843,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Bathrooms
                         if (config.bathrooms) ...[
                           _buildSelectionSection(
                             title: 'Bathrooms',
@@ -790,7 +855,32 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Floor Info
+                        // NEW: Number of Beds in a Room (for PG/Hostel and Shared Room)
+                        if (config.numberOfBeds) ...[
+                          _buildSelectionSection(
+                            title: 'Number of Beds in a Room',
+                            options: numberOfBedsOptions,
+                            selectedValue: _selectedNumberOfBeds,
+                            onSelect: (value) => setState(() => _selectedNumberOfBeds = value),
+                            customController: _customNumberOfBedsController,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // NEW: People Allowed Per Room (for PG/Hostel and Shared Room)
+                        if (config.peoplePerRoom) ...[
+                          _buildSelectionSection(
+                            title: 'How Many People Allowed Per Room',
+                            options: peoplePerRoomOptions,
+                            selectedValue: _selectedPeoplePerRoom,
+                            onSelect: (value) => setState(() => _selectedPeoplePerRoom = value),
+                            customController: _customPeoplePerRoomController,
+                            isRequired: true,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+
                         if (config.floorNo && config.totalFloors) ...[
                           Row(
                             children: [
@@ -821,32 +911,27 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                           const SizedBox(height: 20),
                         ],
 
-                        // Furnishing Status
                         if (config.furnishing) ...[
                           _buildFurnishingSection(),
                           const SizedBox(height: 20),
                         ],
 
-                        // Furnishing Items (if semi or fully furnished) - SELECTION ONLY
                         if (_furnishing == FurnishingStatus.semiFurnished ||
                             _furnishing == FurnishingStatus.fullyFurnished) ...[
                           _buildFurnishingsSection(),
                           const SizedBox(height: 20),
                         ],
 
-                        // Facing Direction (hide for plot and commercial land)
                         if (_shouldShowFacingDirection()) ...[
                           _buildFacingDirection(),
                           const SizedBox(height: 24),
                         ],
 
-                        // Inside Amenities (hide for plot and commercial land) - SELECTION ONLY
                         if (_shouldShowInsideAmenities()) ...[
                           _buildInsideAmenitiesSection(),
                           const SizedBox(height: 24),
                         ],
 
-                        // Nearby Amenities - WITH NAME ENTRY
                         _buildNearbyAmenitiesSection(),
                       ],
                     ),
@@ -855,8 +940,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
               ),
             ),
           ),
-
-          // Next Step Button
           _buildNextStepButton(),
         ],
       ),
@@ -1017,7 +1100,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     );
   }
 
-  // NEW: Property Description Field
   Widget _buildPropertyDescriptionField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1090,10 +1172,9 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
               horizontal: 16,
               vertical: 16,
             ),
-            counterText: '', // Hide character counter
+            counterText: '',
           ),
           onChanged: (text) {
-            // Show character count when typing
             setState(() {});
           },
         ),
@@ -1304,7 +1385,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
     );
   }
 
-  Widget _buildLandExtentSection() {
+  Widget _buildMeasurementSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1317,7 +1398,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
             ),
             SizedBox(width: 8),
             Text(
-              'Land Extent',
+              'Measurement',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1339,22 +1420,22 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
         Row(
           children: [
             Expanded(
+              flex: 3,
               child: TextFormField(
-                controller: _landLengthController,
-                keyboardType: TextInputType.number,
+                controller: _measurementValueController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Length is required';
+                    return 'Measurement is required';
                   }
-                  if (!RegExp(r'^\d+$').hasMatch(value.trim())) {
-                    return 'Enter numbers only';
+                  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value.trim())) {
+                    return 'Enter valid number';
                   }
                   return null;
                 },
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 decoration: InputDecoration(
-                  labelText: 'Length (ft)',
-                  hintText: 'e.g., 60',
+                  hintText: 'Enter value',
                   hintStyle: const TextStyle(
                     color: Color(0xFF9CA3AF),
                     fontSize: 14,
@@ -1388,100 +1469,250 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                '×',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-            ),
+            const SizedBox(width: 12),
             Expanded(
-              child: TextFormField(
-                controller: _landBreadthController,
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Breadth is required';
-                  }
-                  if (!RegExp(r'^\d+$').hasMatch(value.trim())) {
-                    return 'Enter numbers only';
-                  }
-                  return null;
-                },
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                decoration: InputDecoration(
-                  labelText: 'Breadth (ft)',
-                  hintText: 'e.g., 40',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF9CA3AF),
+              flex: 4,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DropdownButton<MeasurementUnit>(
+                  value: _selectedMeasurementUnit,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  hint: const Text(
+                    'Select unit',
+                    style: TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 14,
+                    ),
+                  ),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFEF4444)),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  items: MeasurementUnit.values.map((unit) {
+                    return DropdownMenuItem(
+                      value: unit,
+                      child: Text(unit.displayName),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedMeasurementUnit = value;
+                    });
+                  },
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        if (_landLengthController.text.isNotEmpty && 
-            _landBreadthController.text.isNotEmpty &&
-            RegExp(r'^\d+$').hasMatch(_landLengthController.text) &&
-            RegExp(r'^\d+$').hasMatch(_landBreadthController.text))
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF10B981),
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Total: ${int.parse(_landLengthController.text) * int.parse(_landBreadthController.text)} sqft',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+        if (_measurementValueController.text.isNotEmpty && 
+            _selectedMeasurementUnit != null &&
+            RegExp(r'^\d+(\.\d+)?$').hasMatch(_measurementValueController.text))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
                     color: Color(0xFF10B981),
+                    size: 16,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Text(
+                    '${_measurementValueController.text} ${_selectedMeasurementUnit!.displayName}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildBoundariesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.border_outer,
+              color: Color(0xFF10B981),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Boundaries',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '(Optional)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Enter boundary measurements for each direction (in feet)',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        Row(
+          children: [
+            Expanded(
+              child: _buildBoundaryField(
+                label: 'North',
+                controller: _boundaryNorthController,
+                icon: Icons.north,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildBoundaryField(
+                label: 'South',
+                controller: _boundarySouthController,
+                icon: Icons.south,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        Row(
+          children: [
+            Expanded(
+              child: _buildBoundaryField(
+                label: 'East',
+                controller: _boundaryEastController,
+                icon: Icons.east,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildBoundaryField(
+                label: 'West',
+                controller: _boundaryWestController,
+                icon: Icons.west,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBoundaryField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              color: Color(0xFF6B7280),
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+          validator: (value) {
+            if (value != null && value.trim().isNotEmpty) {
+              if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value.trim())) {
+                return 'Enter valid number';
+              }
+            }
+            return null;
+          },
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          decoration: InputDecoration(
+            hintText: 'e.g., 60',
+            hintStyle: const TextStyle(
+              color: Color(0xFF9CA3AF),
+              fontSize: 13,
+            ),
+            suffixText: 'ft',
+            suffixStyle: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFEF4444)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1635,7 +1866,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
             );
           }).toList(),
         ),
-        // Show custom input field if Custom is selected
         if (selectedValue == 'Custom' && customController != null) ...[
           const SizedBox(height: 12),
           TextFormField(
@@ -1860,7 +2090,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                 ),
               );
             }).toList(),
-            // Plus button to add custom furnishing
             GestureDetector(
               onTap: () => _showAddCustomItemDialog(isForFurnishing: true),
               child: Container(
@@ -1971,7 +2200,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                 ),
               );
             }).toList(),
-            // Plus button to add custom inside amenity
             GestureDetector(
               onTap: () => _showAddCustomItemDialog(isForFurnishing: false, isForInsideAmenities: true),
               child: Container(
@@ -2037,7 +2265,7 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Select amenities available near the property',
+          'Select amenities available within 2 km from the property',
           style: TextStyle(
             fontSize: 12,
             color: Colors.grey.shade600,
@@ -2083,7 +2311,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
                 ),
               );
             }).toList(),
-            // Plus button to add custom nearby amenity
             GestureDetector(
               onTap: () => _showAddCustomItemDialog(isForFurnishing: false, isForInsideAmenities: false),
               child: Container(
@@ -2119,7 +2346,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
             ),
           ],
         ),
-        // Show text fields for selected amenities (MANDATORY)
         ...(_amenityControllers.entries.map((entry) {
           return Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -2176,7 +2402,6 @@ class _AddPropertyStep1ScreenState extends State<AddPropertyStep1Screen> {
   void _showAddCustomItemDialog({required bool isForFurnishing, bool isForInsideAmenities = false}) {
     final controller = TextEditingController();
 
-    // Determine the dialog title and hint based on the type
     String title;
     String hint;
     if (isForFurnishing) {

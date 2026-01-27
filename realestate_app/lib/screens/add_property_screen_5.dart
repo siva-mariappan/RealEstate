@@ -53,7 +53,7 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
   final TextEditingController _otpController = TextEditingController();
   int _resendTimer = 0;
   Timer? _timer;
-  String? _generatedOtp; // In production, this would be server-generated
+  String? _generatedOtp;
 
   // Subscription Plan
   SubscriptionPlan? _selectedPlan;
@@ -174,7 +174,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       return;
     }
 
-    // Generate OTP (In production, this would be done server-side)
     _generatedOtp = (1000 + (9999 - 1000) * (DateTime.now().millisecondsSinceEpoch % 1000) / 1000).toInt().toString();
     
     setState(() {
@@ -182,8 +181,7 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       _resendTimer = 60;
     });
 
-    // In production, send OTP via SMS API
-    print('OTP sent: $_generatedOtp'); // For testing purposes
+    print('OTP sent: $_generatedOtp');
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -193,7 +191,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       ),
     );
 
-    // Start timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_resendTimer > 0) {
@@ -217,7 +214,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       return;
     }
 
-    // In production, verify OTP with server
     if (_otpController.text == _generatedOtp) {
       setState(() {
         _isOtpVerified = true;
@@ -262,6 +258,7 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _SubscriptionPlanSheet(
+        propertyFor: widget.propertyFor,
         onPlanSelected: (plan) {
           setState(() {
             _selectedPlan = plan;
@@ -285,7 +282,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
       return;
     }
 
-    // Save Step 5 contact data to provider
     final provider = Provider.of<PropertyFormProvider>(context, listen: false);
     final formData = provider.formData;
 
@@ -295,14 +291,12 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
     formData.whatsappAvailable = _whatsappSame;
     formData.listedBy = _listedBy?.name;
 
-    // Agent specific fields
     if (_listedBy == ListedBy.agent) {
       formData.agencyName = _agencyNameController.text;
       formData.reraNumber = _reraNumberController.text;
       formData.officeAddress = _officeAddressController.text;
     }
 
-    // Builder specific fields
     if (_listedBy == ListedBy.builder) {
       formData.companyName = _companyNameController.text;
       formData.companyAddress = _companyAddressController.text;
@@ -310,7 +304,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
 
     provider.updateFormData(formData);
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -332,7 +325,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
     );
 
     try {
-      // Submit property to database
       final submissionService = PropertySubmissionService();
       final propertyId = await submissionService.submitProperty(
         formData,
@@ -340,18 +332,14 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
         isVerified: _selectedPlan != SubscriptionPlan.free,
       );
 
-      // Close loading dialog
       if (mounted) Navigator.pop(context);
 
-      // Show success dialog
       if (mounted) {
         _showSuccessDialog();
       }
     } catch (e) {
-      // Close loading dialog
       if (mounted) Navigator.pop(context);
 
-      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -417,9 +405,7 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Reset form
                     Provider.of<PropertyFormProvider>(context, listen: false).resetForm();
-                    // Navigate to home
                     Navigator.popUntil(context, (route) => route.isFirst);
                   },
                   style: ElevatedButton.styleFrom(
@@ -707,7 +693,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
           ),
           const SizedBox(height: 16),
 
-          // Contact Name
           _buildTextFormField(
             controller: _contactNameController,
             label: 'Contact Name',
@@ -722,11 +707,9 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
           ),
           const SizedBox(height: 16),
 
-          // Mobile Number with OTP
           _buildMobileWithOtpField(),
           const SizedBox(height: 16),
 
-          // Email
           _buildTextFormField(
             controller: _emailController,
             label: 'Email (Optional)',
@@ -736,7 +719,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
           ),
           const SizedBox(height: 16),
 
-          // WhatsApp Same
           GestureDetector(
             onTap: () => setState(() => _whatsappSame = !_whatsappSame),
             child: Container(
@@ -920,7 +902,6 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
           ],
         ),
 
-        // OTP Input Field
         if (_isOtpSent && !_isOtpVerified) ...[
           const SizedBox(height: 16),
           Row(
@@ -1329,9 +1310,13 @@ class _AddPropertyStep5ScreenState extends State<AddPropertyStep5Screen> {
 
 // ========== SUBSCRIPTION PLAN SHEET ==========
 class _SubscriptionPlanSheet extends StatefulWidget {
+  final PropertyFor propertyFor;
   final Function(SubscriptionPlan) onPlanSelected;
 
-  const _SubscriptionPlanSheet({required this.onPlanSelected});
+  const _SubscriptionPlanSheet({
+    required this.propertyFor,
+    required this.onPlanSelected,
+  });
 
   @override
   State<_SubscriptionPlanSheet> createState() => _SubscriptionPlanSheetState();
@@ -1347,8 +1332,80 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
     super.dispose();
   }
 
+  // Get price range text based on property type
+  String _getPriceRangeText() {
+    if (widget.propertyFor == PropertyFor.sell) {
+      return '₹0 - ₹1,00,000';
+    } else {
+      return '₹0 - ₹10,000/month';
+    }
+  }
+
+  // Get plan details based on property type
+  Map<String, dynamic> _getPlanDetails(SubscriptionPlan plan) {
+    if (widget.propertyFor == PropertyFor.sell) {
+      // Plans for SELL properties
+      switch (plan) {
+        case SubscriptionPlan.free:
+          return {
+            'price': '₹0',
+            'duration': '/Lifetime',
+            'priceRange': '₹0 - ₹25,000',
+          };
+        case SubscriptionPlan.basic:
+          return {
+            'price': '₹2,999',
+            'duration': '/3 Months',
+            'priceRange': '₹25,001 - ₹50,000',
+          };
+        case SubscriptionPlan.premium:
+          return {
+            'price': '₹4,999',
+            'duration': '/6 Months',
+            'priceRange': '₹50,001 - ₹75,000',
+          };
+        case SubscriptionPlan.professional:
+          return {
+            'price': '₹9,999',
+            'duration': '/12 Months',
+            'priceRange': '₹75,001 - ₹1,00,000',
+          };
+      }
+    } else {
+      // Plans for RENT properties
+      switch (plan) {
+        case SubscriptionPlan.free:
+          return {
+            'price': '₹0',
+            'duration': '/Lifetime',
+            'priceRange': '₹0 - ₹2,500/month',
+          };
+        case SubscriptionPlan.basic:
+          return {
+            'price': '₹1,499',
+            'duration': '/3 Months',
+            'priceRange': '₹2,501 - ₹5,000/month',
+          };
+        case SubscriptionPlan.premium:
+          return {
+            'price': '₹2,499',
+            'duration': '/6 Months',
+            'priceRange': '₹5,001 - ₹7,500/month',
+          };
+        case SubscriptionPlan.professional:
+          return {
+            'price': '₹4,999',
+            'duration': '/12 Months',
+            'priceRange': '₹7,501 - ₹10,000/month',
+          };
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isSell = widget.propertyFor == PropertyFor.sell;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
@@ -1382,12 +1439,21 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const SizedBox(width: 40),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           children: [
-                            Icon(Icons.workspace_premium, color: Colors.white, size: 40),
-                            SizedBox(height: 12),
+                            const Icon(Icons.workspace_premium, color: Colors.white, size: 40),
+                            const SizedBox(height: 12),
                             Text(
+                              isSell ? 'Property for Sale' : 'Property for Rent',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
                               'Choose Your Subscription Plan',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -1396,12 +1462,12 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                                 color: Colors.white,
                               ),
                             ),
-                            SizedBox(height: 6),
+                            const SizedBox(height: 6),
                             Text(
-                              'Get verified badge and boost your property visibility',
+                              'Plans based on property price range: ${_getPriceRangeText()}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: const TextStyle(
+                                fontSize: 12,
                                 color: Colors.white70,
                               ),
                             ),
@@ -1455,8 +1521,6 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                   _buildPlanCard(
                     plan: SubscriptionPlan.free,
                     title: 'Free Listing',
-                    price: '₹0',
-                    duration: '/Lifetime',
                     features: [
                       'Basic property listing',
                       'Visible on search results',
@@ -1473,8 +1537,6 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                   _buildPlanCard(
                     plan: SubscriptionPlan.basic,
                     title: 'Basic Plan',
-                    price: '₹2,999',
-                    duration: '/3 Months',
                     features: [
                       'Verified Badge',
                       'Admin verification',
@@ -1491,8 +1553,6 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                   _buildPlanCard(
                     plan: SubscriptionPlan.premium,
                     title: 'Premium Plan',
-                    price: '₹4,999',
-                    duration: '/6 Months',
                     features: [
                       'Verified Badge',
                       'Featured Listing',
@@ -1508,8 +1568,6 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                   _buildPlanCard(
                     plan: SubscriptionPlan.professional,
                     title: 'Professional Plan',
-                    price: '₹9,999',
-                    duration: '/12 Months',
                     features: [
                       'Everything in Premium',
                       'Featured on homepage',
@@ -1542,13 +1600,16 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
   Widget _buildPlanCard({
     required SubscriptionPlan plan,
     required String title,
-    required String price,
-    required String duration,
     required List<String> features,
     List<String>? negativeFeatures,
     required Color color,
     bool recommended = false,
   }) {
+    final planDetails = _getPlanDetails(plan);
+    final priceRange = planDetails['priceRange'] as String;
+    final price = planDetails['price'] as String;
+    final duration = planDetails['duration'] as String;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -1602,6 +1663,22 @@ class _SubscriptionPlanSheetState extends State<_SubscriptionPlanSheet> {
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: color,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    priceRange,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
